@@ -16,7 +16,7 @@
  *     outage degrades the feature rather than removing the capability.
  */
 import { z } from "zod";
-import type { Info, Result, ToolContext } from "@opencode/plugin/promise/tool";
+import type { ToolEditor } from "@opencode/plugin/promise/tool";
 import type { Logger } from "../shared/logger.js";
 import type { ResolvedWebOptions } from "../options.js";
 import { OmniRouteWebClient, OmniRouteWebError } from "./client.js";
@@ -65,19 +65,6 @@ function contentTypeFor(format: WebFetchInput["format"]): string {
   if (format === "html") return "text/html";
   if (format === "text") return "text/plain";
   return "text/markdown";
-}
-
-/** Minimal tool editor surface this module needs. */
-interface ToolEditor {
-  get(id: string): (Info & { readonly id: string }) | undefined;
-  add<Input extends z.ZodType, Output extends z.ZodType>(tool: {
-    name: string;
-    description: string;
-    input: Input;
-    output: Output;
-    options?: { codemode?: boolean; permission?: string };
-    execute: (input: z.infer<Input>, context: ToolContext) => Promise<Result<Output>>;
-  }): void;
 }
 
 /** The subset of `ctx.tool` and `ctx.permission` this module touches. */
