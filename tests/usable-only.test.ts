@@ -76,8 +76,13 @@ const baseOpts = {
 };
 
 describe("usableOnly option default", () => {
-  it("defaults to false", () => {
+  it("defaults to true", () => {
     const opts = parsePluginOptions({ baseURL: "https://gw.example.com" });
+    assert.equal(opts.usableOnly, true);
+  });
+
+  it("can be turned off explicitly", () => {
+    const opts = parsePluginOptions({ baseURL: "https://gw.example.com", usableOnly: false });
     assert.equal(opts.usableOnly, false);
   });
 });

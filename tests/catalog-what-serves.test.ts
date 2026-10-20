@@ -107,7 +107,7 @@ describe("publish what serves by default", () => {
         freshCrowd("fresh", "fresh/new-model", dated(1, FIXED_NOW), dated(2, FIXED_NOW))
       );
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -124,7 +124,7 @@ describe("publish what serves by default", () => {
         row.id === "tooled/tool-only" ? { ...row, capabilities: { tool_calling: true } } : row
       );
       const raw = await entriesThroughReader(entries);
-      const opts = { ...baseOpts, managementReadToken: "m" };
+      const opts = { ...baseOpts };
       const fetchers = {
         fetcher: async () => raw,
         combosFetcher: async () => [],
@@ -146,7 +146,7 @@ describe("publish what serves by default", () => {
     await withFixedNow(async () => {
       const raw = await entriesThroughReader(crowd("plain", "plain/undated"));
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -165,7 +165,7 @@ describe("publish what serves by default", () => {
         ...crowd("never", "never/never-used"),
       ]);
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -217,7 +217,7 @@ describe("publish what serves by default", () => {
         ...crowd("zzz", "zzz/old-one"),
       ]);
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -237,7 +237,7 @@ describe("publish what serves by default", () => {
     };
     try {
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => crowd("zzz", "zzz/old-one") as unknown as OmniRouteRawModelEntry[],
           combosFetcher: async () => [],
@@ -253,9 +253,11 @@ describe("publish what serves by default", () => {
     assert.equal(warns.filter((w) => /usage fetch failed/.test(w)).length, 1);
   });
 
-  it("missing token never calls the usage endpoint", async () => {
+  it("no key never calls the usage endpoint", async () => {
     let calls = 0;
-    const collected = await collectCatalog(baseOpts, {
+    // One key covers every endpoint, so "no usage call" now means "no key at
+    // all" rather than "no management token".
+    const collected = await collectCatalog({ ...baseOpts, apiKey: "" }, {
       fetcher: async () => crowd("zzz", "zzz/old-one") as unknown as OmniRouteRawModelEntry[],
       combosFetcher: async () => [],
       usageFetcher: async () => {
@@ -277,7 +279,7 @@ describe("publish what serves by default", () => {
         combosFetcher: async () => [],
         usageFetcher: async () => [] as string[],
       };
-      const opts = { ...baseOpts, managementReadToken: "m" };
+      const opts = { ...baseOpts };
       const first = await collectCatalog(opts, fetchers);
       const second = await collectCatalog(opts, fetchers);
       assert.deepEqual([...first.entries.keys()].sort(), [...second.entries.keys()].sort());
@@ -287,7 +289,7 @@ describe("publish what serves by default", () => {
   it("usage beyond the top fifty is not restored", async () => {
     const used = Array.from({ length: 60 }, (_v, i) => `used-${i}`);
     const collected = await collectCatalog(
-      { ...baseOpts, managementReadToken: "m" },
+      { ...baseOpts },
       {
         fetcher: async () =>
           [
@@ -309,7 +311,7 @@ describe("usage memory option", () => {
       let calls = 0;
       const raw = await entriesThroughReader(crowd("zzz", "zzz/old-one"));
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -329,7 +331,7 @@ describe("usage memory option", () => {
       let calls = 0;
       const raw = await entriesThroughReader(crowd("zzz", "zzz/old-one"));
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m", usageMemory: true },
+        { ...baseOpts, usageMemory: true },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -364,11 +366,11 @@ describe("usage memory option", () => {
     });
   });
 
-  it("makes no usage call without a token", async () => {
+  it("makes no usage call without a key", async () => {
     await withFixedNow(async () => {
       let calls = 0;
       const raw = await entriesThroughReader(crowd("zzz", "zzz/old-one"));
-      const collected = await collectCatalog(baseOpts, {
+      const collected = await collectCatalog({ ...baseOpts, apiKey: "" }, {
         fetcher: async () => raw,
         combosFetcher: async () => [],
         usageFetcher: async () => {
@@ -381,12 +383,12 @@ describe("usage memory option", () => {
     });
   });
 
-  it("makes no usage call without a token when enabled", async () => {
+  it("makes no usage call without a key when enabled", async () => {
     await withFixedNow(async () => {
       let calls = 0;
       const raw = await entriesThroughReader(crowd("zzz", "zzz/old-one"));
       const collected = await collectCatalog(
-        { ...baseOpts, usageMemory: true },
+        { ...baseOpts, apiKey: "", usageMemory: true },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -411,7 +413,7 @@ describe("usage memory option", () => {
       await withFixedNow(async () => {
         const raw = await entriesThroughReader(crowd("zzz", "zzz/old-one"));
         const collected = await collectCatalog(
-          { ...baseOpts, managementReadToken: "m" },
+          { ...baseOpts },
           {
             fetcher: async () => raw,
             combosFetcher: async () => [],
@@ -432,7 +434,7 @@ describe("usage memory option", () => {
     await withFixedNow(async () => {
       const raw = await entriesThroughReader(crowd("zzz", "zzz/old-one"));
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -455,7 +457,7 @@ describe("usage memory option", () => {
         { id: "base/vivid", owned_by: "base", context_length: 1000 },
       ]);
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -519,7 +521,7 @@ describe("retired entries stay out of the default view", () => {
         },
       ]);
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -542,7 +544,7 @@ describe("retired entries stay out of the default view", () => {
         },
       ]);
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -597,7 +599,7 @@ describe("flat effort-variant ids stay out of the default view", () => {
           },
         ]);
         const collected = await collectCatalog(
-          { ...baseOpts, managementReadToken: "m" },
+          { ...baseOpts },
           {
             fetcher: async () => raw,
             combosFetcher: async () => [],
@@ -627,7 +629,7 @@ describe("flat effort-variant ids stay out of the default view", () => {
         },
       ]);
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -670,7 +672,7 @@ describe("flat effort-variant ids stay out of the default view", () => {
         },
       ]);
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -730,7 +732,7 @@ describe("fresh cap per owner", () => {
     await withFixedNow(async () => {
       const raw = await entriesThroughReader(crowd("plain", "plain/undated"));
       const collected = await collectCatalog(
-        { ...baseOpts, managementReadToken: "m" },
+        { ...baseOpts },
         {
           fetcher: async () => raw,
           combosFetcher: async () => [],
@@ -782,7 +784,7 @@ describe("showcase size option", () => {
   it("keeps ten entries per owner when unset", async () => {
     const raw = await entriesThroughReader(crowd("aaa", "aaa/target"));
     const collected = await collectCatalog(
-      { ...baseOpts, managementReadToken: "m" },
+      { ...baseOpts },
       {
         fetcher: async () => raw,
         combosFetcher: async () => [],
@@ -800,7 +802,7 @@ describe("showcase size option", () => {
       combosFetcher: async () => [],
       usageFetcher: async () => [] as string[],
     };
-    const tokenOpts = { ...baseOpts, managementReadToken: "m" };
+    const tokenOpts = { ...baseOpts };
     const fallback = await collectCatalog(tokenOpts, fetchers);
     const zeroed = await collectCatalog({ ...tokenOpts, showcasePerOwner: 0 }, fetchers);
     assert.ok(fallback.entries.size > 0);

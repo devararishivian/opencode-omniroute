@@ -17,36 +17,30 @@ function collectingLogger(): { log: Logger; warnings: string[] } {
 describe("degraded enrichment is reported, not swallowed", () => {
   it("names the endpoint and what the catalog loses", () => {
     const { log, warnings } = collectingLogger();
-    createSourceErrorReporter(log, false)("/api/pricing", "HTTP 500");
+    createSourceErrorReporter(log)("/api/pricing", "HTTP 500");
     assert.equal(warnings.length, 1);
     assert.match(warnings[0] ?? "", /\/api\/pricing/);
     assert.match(warnings[0] ?? "", /HTTP 500/);
     assert.match(warnings[0] ?? "", /pricing are degraded/);
   });
 
-  it("points a 403 at the management token when the inference key stands in", () => {
+  it("explains that a refused key only costs metadata", () => {
     const { log, warnings } = collectingLogger();
-    createSourceErrorReporter(log, true)("/api/pricing/models", "HTTP 403");
-    assert.match(warnings[0] ?? "", /managementReadToken/);
-    assert.match(warnings[0] ?? "", /falls back to "apiKey"/);
-  });
-
-  it("does not blame the fallback when a management token was configured", () => {
-    const { log, warnings } = collectingLogger();
-    createSourceErrorReporter(log, false)("/api/pricing/models", "HTTP 403");
-    assert.match(warnings[0] ?? "", /was rejected/);
-    assert.doesNotMatch(warnings[0] ?? "", /falls back/);
+    createSourceErrorReporter(log)("/api/pricing/models", "HTTP 403");
+    assert.match(warnings[0] ?? "", /management scope/);
+    assert.match(warnings[0] ?? "", /not model access/);
   });
 
   it("keeps a transport failure free of auth advice", () => {
     const { log, warnings } = collectingLogger();
-    createSourceErrorReporter(log, true)("/api/pricing", "connect ECONNREFUSED");
-    assert.doesNotMatch(warnings[0] ?? "", /managementReadToken/);
+    createSourceErrorReporter(log)("/api/pricing", "connect ECONNREFUSED");
+    assert.doesNotMatch(warnings[0] ?? "", /management scope/);
+    assert.match(warnings[0] ?? "", /ECONNREFUSED/);
   });
 
   it("warns once per endpoint so a refresh loop cannot spam the log", () => {
     const { log, warnings } = collectingLogger();
-    const report = createSourceErrorReporter(log, true);
+    const report = createSourceErrorReporter(log);
     report("/api/pricing", "HTTP 403");
     report("/api/pricing", "HTTP 403");
     report("/api/free-tier/summary", "HTTP 403");

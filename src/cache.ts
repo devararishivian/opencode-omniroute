@@ -108,10 +108,9 @@ export function memoryCacheKey(baseURL: string, credentialId: string): string {
 export function snapshotIdentityFingerprint(
   baseURL: string,
   apiKey: string,
-  managementReadToken: string
 ): string {
   return createHash("sha256")
-    .update(JSON.stringify([normalizeBaseURL(baseURL), apiKey, managementReadToken]))
+    .update(JSON.stringify([normalizeBaseURL(baseURL), apiKey]))
     .digest("hex");
 }
 

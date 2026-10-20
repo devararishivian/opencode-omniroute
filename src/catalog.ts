@@ -83,6 +83,7 @@ export {
 } from "./catalog-freshness.js";
 export type { ModelListFilter } from "./catalog-freshness.js";
 import type { ModelListFilter } from "./catalog-freshness.js";
+import type { ResolvedWebOptions } from "./options.js";
 
 export type ModelsFetcher = OmniRouteModelsFetcher;
 export type CombosFetcher = OmniRouteCombosFetcher;
@@ -99,7 +100,6 @@ export interface ResolvedOptions {
   providerId: string;
   baseURL: string;
   apiKey: string;
-  managementReadToken?: string;
   timeoutMs: number;
   timeouts?: EndpointTimeouts;
   logger?: Logger;
@@ -151,6 +151,8 @@ export interface ResolvedOptions {
    * set so a repeated publish (stale replay + refresh) warns once per key.
    */
   collisionWarned?: Set<string>;
+  /** Resolved web integration settings; consumed by the plugin entrypoint. */
+  web?: ResolvedWebOptions;
 }
 
 export interface CatalogFetchers {
@@ -264,13 +266,13 @@ async function resolveUsageIds(
   log: Logger
 ): Promise<Set<string>> {
   if (dropped.length === 0) return new Set();
-  if (!opts.managementReadToken) return new Set();
+  if (!opts.apiKey) return new Set();
   const fetchUsage = fetchers?.usageFetcher ?? fetchers?.usage ?? defaultOmniRouteUsageFetcher;
   let used: string[];
   try {
     used = await fetchUsage(
       opts.baseURL,
-      opts.managementReadToken,
+      opts.apiKey,
       opts.timeoutMs,
       fetchers?.onSourceError
     );
@@ -551,7 +553,7 @@ async function resolveEnrichmentOverlay(
   try {
     return await fetchEnrichment(
       opts.baseURL,
-      opts.managementReadToken ?? opts.apiKey,
+      opts.apiKey,
       opts.timeouts?.enrichment ?? opts.timeoutMs,
       fetchers?.onSourceError
     );
@@ -605,7 +607,7 @@ async function resolveProviderSources(
     const fetchProviders = providersFetcher ?? defaultOmniRouteProvidersFetcher;
     rawConnections = await fetchProviders(
       opts.baseURL,
-      opts.managementReadToken ?? opts.apiKey,
+      opts.apiKey,
       timeoutMs,
       onSourceError
     );
@@ -685,7 +687,7 @@ async function publishCombos(
   let rawCombos: OmniRouteRawCombo[];
   try {
     rawCombos = combosFetcher
-      ? await combosFetcher(opts.baseURL, opts.managementReadToken ?? opts.apiKey, combosTimeout)
+      ? await combosFetcher(opts.baseURL, opts.apiKey, combosTimeout)
       : [];
   } catch (err) {
     log.warn(

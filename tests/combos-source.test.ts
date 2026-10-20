@@ -203,7 +203,10 @@ function setupCtx(options: Record<string, unknown>) {
   };
 }
 
+let requestSetSeq = 0;
+
 async function requestedPaths(extra: Record<string, unknown>): Promise<string[]> {
+  requestSetSeq += 1;
   const requested: string[] = [];
   const origFetch = globalThis.fetch;
   globalThis.fetch = (async (url: unknown) => {
@@ -217,8 +220,9 @@ async function requestedPaths(extra: Record<string, unknown>): Promise<string[]>
       (plugin as unknown as { setup: (ctx: unknown) => Promise<void> }).setup(
         setupCtx({
           baseURL: "https://gw.example.com",
-          // A distinct provider id per call keeps the disk snapshots apart.
-          providerId: `combos-source-${String(extra.combosSource ?? "default")}`,
+          // A distinct provider id per call keeps the disk snapshots and the
+          // in-memory cache apart, so every call really hits the network.
+          providerId: `combos-source-${String(requestSetSeq)}`,
           apiKey: "k",
           enrichment: false,
           usageMemory: false,
@@ -240,8 +244,18 @@ describe("plugin refresh combo request", () => {
     assert.ok(paths.includes("/api/combos"), `expected /api/combos, got ${JSON.stringify(paths)}`);
   });
 
-  it("combosSource=models: never requests /api/combos", async () => {
+  it("combosSource=models with usableOnly on keeps the member-verified source", async () => {
     const paths = await requestedPaths({ combosSource: "models" });
+    assert.ok(
+      paths.includes("/api/combos"),
+      `usableOnly needs the member list, got ${JSON.stringify(paths)}`
+    );
+  });
+
+  it("combosSource=models: never requests /api/combos", async () => {
+    // `usableOnly` is on by default and needs the member list, so the opt-in
+    // source is only reachable with the filter off.
+    const paths = await requestedPaths({ combosSource: "models", usableOnly: false });
     assert.ok(paths.includes("/v1/models"));
     assert.equal(paths.includes("/api/combos"), false, JSON.stringify(paths));
   });

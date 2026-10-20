@@ -16,7 +16,7 @@ interface CtxOpts {
 const requestedPaths: string[] = [];
 
 function stubFetch(
-  counter: { models: number; combos: number; enrichment?: number },
+  counter: { models: number; combos: number; enrichment?: number; providers?: number },
   modelIds: string[]
 ) {
   return (async (url: unknown) => {
@@ -26,6 +26,12 @@ function stubFetch(
       return { ok: true, status: 200, statusText: "OK", json: async () => ({}) };
     }
     requestedPaths.push(new URL(href).pathname);
+    if (href.includes("/api/providers")) {
+      // `usableOnly` defaults to true, so the plugin asks for the connection
+      // list. An empty answer keeps the filter fail-open.
+      if (counter.providers !== undefined) counter.providers += 1;
+      return { ok: true, status: 200, statusText: "OK", json: async () => ({ connections: [] }) };
+    }
     if (href.includes("/api/combos")) {
       counter.combos += 1;
       return { ok: true, status: 200, statusText: "OK", json: async () => ({ combos: [] }) };

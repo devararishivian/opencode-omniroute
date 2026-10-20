@@ -14,7 +14,7 @@ describe("parsePluginOptions", () => {
     const opts = parsePluginOptions({ baseURL: "https://gw.example.com" });
     assert.equal(opts.providerId, "omniroute");
     assert.equal(opts.timeoutMs, 10000);
-    assert.equal(opts.usableOnly, false);
+    assert.equal(opts.usableOnly, true);
     assert.equal(opts.enrichment, true);
     assert.equal(opts.freeOnly, false);
     // Owner decision 2026-10-07: the full catalog is the default again; toolsOnly is opt-in.
@@ -208,7 +208,7 @@ describe("identity table", () => {
     assert.equal(providerIdFor("second-gateway"), "second-gateway");
     // The host reads the plugin id before any option exists, so it never
     // varies with providerId.
-    assert.equal(PLUGIN_ID, "omniroute-v2");
+    assert.equal(PLUGIN_ID, "opencode-omniroute");
   });
 });
 

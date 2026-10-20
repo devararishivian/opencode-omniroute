@@ -442,7 +442,7 @@ describe("capability presets pick from the whole catalog", () => {
 
   it("freeOnly does not restore a paid entry named by usage memory", async () => {
     const collected = await collectCatalog(
-      { ...baseOpts, freeOnly: true, managementReadToken: "m" },
+      { ...baseOpts, freeOnly: true },
       {
         fetcher: async () => [
           ...Array.from({ length: 10 }, (_v, i) => ({

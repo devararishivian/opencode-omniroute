@@ -28,7 +28,6 @@ import { type ApiKeyOrigin, resolveApiKey, warnIfMissing } from "./credentials.j
 import { createSourceErrorReporter } from "./enrichment-report.js";
 import { sanitizeToolSchemasFor } from "./gemini-language.js";
 import {
-  MANAGEMENT_TOKEN_ENV_VAR,
   PLUGIN_ID,
   parsePluginOptions,
   resolveTimeouts,
@@ -101,24 +100,13 @@ export default Plugin.define({
       );
     }
     log.info(`[omniroute-v2] init providerId=${X}`);
-    // The inference key stands in below when no management token is set, and
-    // gateways usually reject that stand-in with 401/403. Say so once here,
-    // before any fetch, instead of letting the refusal surface per endpoint.
-    if (resolved.managementReadToken === undefined) {
-      log.warn(
-        `[omniroute-v2] no management token configured: management endpoints (/api/*) will reuse the inference key, ` +
-          `which gateways usually reject with 401/403. Set "managementReadToken" in the plugin options ` +
-          `or export ${MANAGEMENT_TOKEN_ENV_VAR}.`
-      );
-    }
-    if (
-      resolved.usageMemory !== false &&
-      resolved.managementReadToken === undefined &&
-      !warnedMemoryNoToken
-    ) {
+    // One key covers /v1/* and /api/*. A key minted for inference only is
+    // refused by the management routes, which costs metadata but never model
+    // access, so this is a single informational line rather than an error.
+    if (resolved.usageMemory !== false && !warnedMemoryNoToken) {
       warnedMemoryNoToken = true;
-      log.warn(
-        "[omniroute-v2] usage history inactive without management token: statically dropped models stay unpublished."
+      log.debug(
+        "[omniroute-v2] usage history needs /api/usage/analytics; without management scope on the key it stays inactive."
       );
     }
 
@@ -142,15 +130,8 @@ export default Plugin.define({
     // register synchronously, so the lookup happens on the first publish;
     // until then the option/env key resolved above stands in.
     const credentialsOf = (): { cacheKey: string; identityFingerprint: string } => ({
-      cacheKey: memoryCacheKey(
-        resolved.baseURL,
-        `${resolved.apiKey}\0${resolved.managementReadToken ?? resolved.apiKey}`
-      ),
-      identityFingerprint: snapshotIdentityFingerprint(
-        resolved.baseURL,
-        resolved.apiKey,
-        resolved.managementReadToken ?? resolved.apiKey
-      ),
+      cacheKey: memoryCacheKey(resolved.baseURL, resolved.apiKey),
+      identityFingerprint: snapshotIdentityFingerprint(resolved.baseURL, resolved.apiKey),
     });
     let { cacheKey, identityFingerprint } = credentialsOf();
 
@@ -189,10 +170,7 @@ export default Plugin.define({
     // Failures are reported once per endpoint (with the management-token hint
     // when the inference key stands in), so a gated `/api/*` degrades loudly
     // rather than silently. Declared before the wrappers that use it.
-    const reportSourceError = createSourceErrorReporter(
-      log,
-      resolved.managementReadToken === undefined
-    );
+    const reportSourceError = createSourceErrorReporter(log);
     const fetchCombosSafe = async (): Promise<SourceResult<OmniRouteRawCombo[]>> => {
       // Opt-in models source: the combo rows already arrive in /v1/models,
       // so /api/combos is not requested at all (default "api" keeps it).
@@ -202,7 +180,7 @@ export default Plugin.define({
           ok: true,
           value: await defaultOmniRouteCombosFetcher(
             resolved.baseURL,
-            resolved.managementReadToken ?? resolved.apiKey,
+            resolved.apiKey,
             timeouts.combos
           ),
         };
@@ -223,7 +201,7 @@ export default Plugin.define({
           ok: true,
           value: await defaultOmniRouteProvidersFetcher(
             resolved.baseURL,
-            resolved.managementReadToken ?? resolved.apiKey,
+            resolved.apiKey,
             timeouts.models,
             reportSourceError
           ),
@@ -245,7 +223,7 @@ export default Plugin.define({
           ok: true,
           value: await defaultOmniRouteEnrichmentFetcher(
             resolved.baseURL,
-            resolved.managementReadToken ?? resolved.apiKey,
+            resolved.apiKey,
             timeouts.enrichment,
             reportSourceError
           ),
