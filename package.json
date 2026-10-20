@@ -1,0 +1,62 @@
+{
+  "name": "@devvara/oc-omniroute-plugin",
+  "version": "0.1.0",
+  "description": "Independent OpenCode V2 plugin that connects OmniRoute as a custom provider and optionally routes native web search/fetch through OmniRoute REST.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "server.js",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "tsup && tsc --emitDeclarationOnly --declaration --outDir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --import ./tests/setup.ts --test \"tests/**/*.test.ts\"",
+    "prepublishOnly": "bun run clean && bun run build && bun run test"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@opencode/plugin": "2.1.0",
+    "@types/bun": "^1.4.3",
+    "@types/node": "^22.19.19",
+    "bun-types": "^1.4.3",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "packageManager": "bun@1.4.3",
+  "license": "MIT",
+  "author": "devvara",
+  "keywords": [
+    "omniroute",
+    "opencode",
+    "opencode-plugin",
+    "opencode-v2",
+    "ai-sdk",
+    "openai-compatible",
+    "provider",
+    "catalog"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@opencode/plugin": ">=2.1.0 <3"
+  }
+}

@@ -1,0 +1,23 @@
+oc-omniroute-plugin
+===================
+
+This package is an independent community derivative of the MIT-licensed
+OmniRoute OpenCode V2 plugin:
+
+    @omniroute/opencode-plugin-v2
+    https://github.com/diegosouzapw/OmniRoute
+    Copyright (c) 2026 OmniRoute contributors
+    MIT License
+
+Substantial portions of src/ and tests/ originate from that project. They are
+used and modified under the terms of the MIT License reproduced in LICENSE.
+
+This project is NOT an official OmniRoute package and is NOT endorsed by or
+affiliated with OmniRoute or OpenCode. It is maintained independently.
+
+Changes from upstream include, among others:
+  - normalized custom-provider identity (displayPrefix, provider-specific
+    prefixes, canonical node ids) shared by enrichment, filtering and naming;
+  - name-first model titles with a provider marker;
+  - a single-credential configuration;
+  - opt-in OmniRoute-backed web search and webfetch over REST, without MCP.
