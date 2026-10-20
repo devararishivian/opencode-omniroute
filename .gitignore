@@ -573,6 +573,8 @@ dist
 
 # End of https://www.toptal.com/developers/gitignore/api/phpstorm,phpstorm+iml,phpstorm+all,jetbrains,jetbrains+all,jetbrains+iml,node,visualstudiocode
 
+research
+docs/superpowers
 .superpowers
 .pi
 .serena
