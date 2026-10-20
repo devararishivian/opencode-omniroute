@@ -228,14 +228,21 @@ export function autoComboModelId(variant: AutoVariant | undefined): string {
 // ── Universal Display Name Builder ────────────────────────────────────────
 
 export interface ModelDisplayNameParams {
-  /** Raw model ID (e.g. "cc/claude-sonnet-4-6"). */
+  /** Raw model ID (e.g. "cc/" or "openagentic/deepseek-v4-flash"). */
   rawId: string;
-  /** Enrichment display name (e.g. "Claude Sonnet 4.6"). */
+  /** Enrichment display name (e.g. "the model 4.6"). */
   enrichmentName?: string;
-  /** Provider tag enrichment. */
+  /**
+   * Public provider prefix the model is served under (`openagentic`, `cc`).
+   * This is what the title carries: the TUI searches titles and provider
+   * category, and the model id is not a search key, so the prefix has to be
+   * in the title for the provider to stay findable.
+   */
   providerAlias?: string;
-  /** Human-readable upstream provider label. */
+  /** Human-readable upstream provider label, used only when no alias exists. */
   providerDisplayName?: string;
+  /** Explicit label; wins over both alias and display name. */
+  providerLabel?: string;
   /** Whether model is free tier. */
   isFree?: boolean;
   /** Free model budget info. */
@@ -254,18 +261,26 @@ export interface ModelDisplayNameParams {
   autoCandidateCount?: number;
 }
 
+/** Suffix format for the provider marker in a display name. */
+export function formatProviderSuffix(label: string): string {
+  return ` (${label})`;
+}
+
 /**
- * Build the final display name following the universal template.
+ * Build the final display name.
  *
- * Priority:
- *   1. Auto combo → "Auto: <variant> (<N>p)"
- *   2. DB combo → "Combo: <name>"
- *   3. Free + enrichment + provider tag → "[Free] <label> - <name> · <budget>"
- *   4. Free + enrichment → "[Free] <name> · <budget>"
- *   5. Free + raw → "[Free] <rawId> · <budget>"
- *   6. Enrichment + provider tag → "<label> - <name>"
- *   7. Enrichment only → "<name>"
- *   8. Raw fallback → normaliseFreeLabel(rawId)
+ * Name-first policy: the friendly model name leads and the provider prefix
+ * follows in parentheses, so the picker stays readable while every model stays
+ * findable by its provider:
+ *
+ *   `DeepSeek V4 Flash (openagentic)`
+ *   `[Free] DeepSeek V4 Flash (openagentic) .. 25M tokens/day`
+ *   `Auto: Coding (4p)`                        <- auto combo
+ *   `Combo: Daily driver`                      <- DB combo
+ *
+ * The label is the served prefix, never a generated node id or a UUID. When no
+ * friendly name exists the raw id already starts with that prefix, so the
+ * suffix is skipped instead of repeating it.
  */
 export function buildModelDisplayName(params: ModelDisplayNameParams): string {
   // Auto combos
@@ -273,7 +288,7 @@ export function buildModelDisplayName(params: ModelDisplayNameParams): string {
     return formatAutoComboName(params.autoVariant, params.autoCandidateCount);
   }
 
-  // Determine base name — strip any existing free suffix first
+  // Determine base name - strip any existing free suffix first
   const rawBase =
     params.enrichmentName && params.enrichmentName.trim().length > 0
       ? params.enrichmentName
@@ -287,21 +302,27 @@ export function buildModelDisplayName(params: ModelDisplayNameParams): string {
 
   let baseName = cleanedBase;
 
-  // Provider tag (skip for combos)
+  // Provider marker (skip for combos: they route across providers).
   if (!params.isCombo) {
-    const label = shortProviderLabel({
-      providerDisplayName: params.providerDisplayName,
-      providerAlias: params.providerAlias,
-    });
-    if (label) {
-      const prefix = `${label}${PROVIDER_TAG_SEPARATOR}`;
-      if (!baseName.startsWith(prefix)) {
-        baseName = `${prefix}${baseName}`;
-      }
+    const explicit = params.providerLabel?.trim();
+    const alias = params.providerAlias?.trim();
+    const display = params.providerDisplayName?.trim();
+    const label =
+      explicit !== undefined && explicit.length > 0
+        ? explicit
+        : alias !== undefined && alias.length > 0
+          ? alias
+          : display;
+    if (label !== undefined && label.length > 0 && !hasProviderMarker(baseName, label)) {
+      const isRawBase =
+        params.enrichmentName === undefined || params.enrichmentName.trim().length === 0;
+      const rawHasPrefix =
+        isRawBase && baseName.toLowerCase().startsWith(`${label.toLowerCase()}/`);
+      if (!rawHasPrefix) baseName = `${baseName}${formatProviderSuffix(label)}`;
     }
   }
 
-  // Prepend [Free] if applicable (AFTER provider tag for correct ordering)
+  // Prepend [Free] if applicable (AFTER the provider marker for ordering)
   if (isFree) {
     baseName = `[Free] ${baseName}`;
   }
@@ -319,4 +340,13 @@ export function buildModelDisplayName(params: ModelDisplayNameParams): string {
   }
 
   return baseName;
+}
+
+/** Whether `name` already carries this provider marker in any spelling. */
+function hasProviderMarker(name: string, label: string): boolean {
+  const lowered = name.toLowerCase();
+  const needle = label.toLowerCase();
+  if (lowered.includes(`(${needle})`)) return true;
+  // Legacy `Provider - Name` titles must not gain a second marker.
+  return lowered.startsWith(`${needle} - `);
 }

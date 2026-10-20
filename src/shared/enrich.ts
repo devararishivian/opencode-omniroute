@@ -13,12 +13,26 @@ export interface OmniRouteEnrichmentEntry {
     cacheWrite?: number;
   };
   /**
-   * Provider alias prefix seen in `/v1/models` ids (e.g. `cc`, `gemini`).
-   * Populated by `defaultOmniRouteEnrichmentFetcher` from
-   * `/api/pricing/models` keys. Drives the `usableOnly` alias↔canonical
-   * resolution.
+   * Public prefix the model is served under (e.g. `openagentic`), i.e. what
+   * appears before the `/` in `/v1/models` ids. Populated by
+   * `defaultOmniRouteEnrichmentFetcher` from the slot's `displayPrefix` when
+   * present, else from the `/api/pricing/models` key. Drives enrichment
+   * lookup, display naming, and the `usableOnly` alias↔canonical resolution.
    */
   providerAlias?: string;
+  /**
+   * Slot key the gateway used in `/api/pricing/models`. For a compatible
+   * provider node this is often `openai-compatible-chat-<uuid>`, which is why
+   * it must never be used as a display prefix. Kept for diagnostics and for
+   * joining the `/api/pricing` response, which is keyed the same way.
+   */
+  slotKey?: string;
+  /**
+   * `displayPrefix` as returned by `/api/pricing/models`, when the slot
+   * carries one. Equal to `providerAlias` when present; kept separately so a
+   * caller can tell an explicit gateway prefix from a slot key.
+   */
+  displayPrefix?: string;
   /**
    * Canonical provider id used by `/api/providers` connections (e.g.
    * `claude`, `gemini`, `kiro`). Populated from the per-provider
@@ -212,7 +226,7 @@ export function canonicalDedupSet(
  * models but `/v1/models` also returns `cohere/rerank-multilingual-v3.0`
  * and `cohere/rerank-v4.0-fast` (not in the curated 10). Without this
  * index, those rows surface in the picker as `cohere/...` with no
- * `Cohere - ` prefix because the per-model enrichment lookup misses.
+ * `(cohere)` marker because the per-model enrichment lookup misses.
  *
  * This index records the first non-empty `providerDisplayName` seen
  * for each alias, plus the alias itself. Callers use it to synthesize
@@ -362,6 +376,10 @@ export const defaultOmniRouteEnrichmentFetcher: OmniRouteEnrichmentFetcher = asy
   };
   const out: OmniRouteEnrichmentMap = new Map();
   if (!baseURL || !apiKey) return out;
+  // `/api/pricing` is keyed by the same slot key as `/api/pricing/models`, but
+  // the enrichment map is keyed by the PUBLIC prefix. Remember the mapping so a
+  // node-keyed price lands on the served prefix instead of a slot nobody reads.
+  const slotPrefixByKey = new Map<string, string>();
   const root = trimTrailingSlashes(baseURL.replace(/\/v1\/?$/, ""));
   const headers = {
     Authorization: `Bearer ${apiKey}`,
@@ -385,7 +403,7 @@ export const defaultOmniRouteEnrichmentFetcher: OmniRouteEnrichmentFetcher = asy
         (body as { providers?: Record<string, { models?: unknown[] }> })?.providers ??
         (body as Record<string, { models?: unknown[] }>);
       if (providers && typeof providers === "object") {
-        for (const [providerAlias, slot] of Object.entries(providers)) {
+        for (const [slotKey, slot] of Object.entries(providers)) {
           if (!slot || typeof slot !== "object") continue;
           const models = (slot as { models?: unknown[] }).models;
           if (!Array.isArray(models)) continue;
@@ -393,7 +411,18 @@ export const defaultOmniRouteEnrichmentFetcher: OmniRouteEnrichmentFetcher = asy
           const providerCanonical =
             typeof canonicalRaw === "string" && canonicalRaw.length > 0
               ? canonicalRaw
-              : providerAlias;
+              : slotKey;
+          // `displayPrefix` is the public prefix a compatible provider node is
+          // served under (#9557). Without it a node-keyed slot never matches
+          // the served ids, so every lookup falls through to the bare-id
+          // fallback and the model loses its provider label and prices.
+          const displayPrefixRaw = (slot as { displayPrefix?: unknown }).displayPrefix;
+          const displayPrefix =
+            typeof displayPrefixRaw === "string" && displayPrefixRaw.trim().length > 0
+              ? displayPrefixRaw.trim()
+              : undefined;
+          const publicPrefix = displayPrefix ?? slotKey;
+          slotPrefixByKey.set(slotKey, publicPrefix);
           const slotNameRaw = (slot as { name?: unknown }).name;
           const providerDisplayName =
             typeof slotNameRaw === "string" && slotNameRaw.trim().length > 0
@@ -405,12 +434,14 @@ export const defaultOmniRouteEnrichmentFetcher: OmniRouteEnrichmentFetcher = asy
             if (typeof id !== "string" || id.length === 0) continue;
             const name = (m as { name?: unknown }).name;
             const entry: OmniRouteEnrichmentEntry = {
-              providerAlias,
+              providerAlias: publicPrefix,
               providerCanonical,
             };
+            if (publicPrefix !== slotKey) entry.slotKey = slotKey;
+            if (displayPrefix !== undefined) entry.displayPrefix = displayPrefix;
             if (providerDisplayName) entry.providerDisplayName = providerDisplayName;
             if (typeof name === "string" && name.trim().length > 0) entry.name = name;
-            const namespaced = `${providerAlias}/${id}`;
+            const namespaced = `${publicPrefix}/${id}`;
             if (!out.has(namespaced)) out.set(namespaced, entry);
             // The bare id is a fallback for ids that arrive unnamespaced. It
             // gets its OWN copy: sharing the object would let a later write
@@ -452,8 +483,9 @@ export const defaultOmniRouteEnrichmentFetcher: OmniRouteEnrichmentFetcher = asy
     if (res.ok) {
       const body = (await res.json()) as unknown;
       if (body && typeof body === "object" && !Array.isArray(body)) {
-        for (const [providerAlias, slot] of Object.entries(body as Record<string, unknown>)) {
+        for (const [rawProviderAlias, slot] of Object.entries(body as Record<string, unknown>)) {
           if (!slot || typeof slot !== "object" || Array.isArray(slot)) continue;
+          const providerAlias = slotPrefixByKey.get(rawProviderAlias) ?? rawProviderAlias;
           for (const [modelId, raw] of Object.entries(slot as Record<string, unknown>)) {
             if (!raw || typeof raw !== "object") continue;
             const p = raw as Record<string, unknown>;
@@ -631,19 +663,25 @@ export interface EnrichmentDisplayContext {
   /** Combos never carry a provider tag: they route across providers. */
   isCombo?: boolean;
   isAutoCombo?: boolean;
-  /** Set false to publish the bare display name, without the provider tag. */
+  /** Set false to publish the bare display name, without the provider marker. */
   providerTag?: boolean;
+  /**
+   * Resolved provider label for this entry (the served prefix, from the
+   * identity index). It wins over the enrichment row's own alias, which is
+   * keyed by slot and can name a provider the id does not route to.
+   */
+  providerLabel?: string;
 }
 
 /**
- * Fold the overlay into a mapped model: display name, provider tag, free-tier
+ * Fold the overlay into a mapped model: display name, provider marker, free-tier
  * marker and budget, and pricing.
  *
  * The name is built rather than copied, because the gateway ships the parts
  * separately — the pricing catalog gives a display name and an upstream
  * provider label, the free-tier summary gives the budget. A picker showing
- * `Claude - [Free] Sonnet 4.6 · 1M/mo` tells the user which connection serves
- * the model and what it costs them; `claude-sonnet-4-6` tells them nothing.
+ * `DeepSeek V4 Flash (openagentic)` tells the user which connection serves the
+ * model; `openagentic/deepseek-v4-flash` alone does not.
  */
 export function applyEnrichment(
   model: ModelV2,
@@ -651,11 +689,13 @@ export function applyEnrichment(
   context: EnrichmentDisplayContext = {}
 ): ModelV2 {
   if (!enrichment) return model;
+  const tagged = context.providerTag !== false;
   const built = buildModelDisplayName({
     rawId: model.name && model.name.length > 0 ? model.name : model.id,
     enrichmentName: enrichment.name,
-    providerAlias: context.providerTag === false ? undefined : enrichment.providerAlias,
-    providerDisplayName: context.providerTag === false ? undefined : enrichment.providerDisplayName,
+    providerAlias: tagged ? enrichment.providerAlias : undefined,
+    providerDisplayName: tagged ? enrichment.providerDisplayName : undefined,
+    providerLabel: tagged ? context.providerLabel : undefined,
     isFree: enrichment.freeType !== undefined,
     freeType: enrichment.freeType,
     monthlyTokens: enrichment.monthlyTokens,

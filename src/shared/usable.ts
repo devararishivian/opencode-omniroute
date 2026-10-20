@@ -105,19 +105,34 @@ export function usableProviderAliasSet(
   enrichment: OmniRouteEnrichmentMap | undefined
 ): UsableProviderSet {
   const usableCanonicals = new Set<string>();
+  const aliases = new Set<string>();
+  const knownAliases = new Set<string>();
+  // `providerSpecificData.prefix` is the public prefix a compatible provider
+  // node is served under, and the only spelling that matches `/v1/models` when
+  // no pricing slot describes the connection. Track it for every connection so
+  // an explicitly disabled one can be dropped, not just the usable ones.
+  const prefixUsable = new Map<string, boolean>();
+
   for (const c of connections) {
+    if (!c) continue;
     // A missing toggle means "no opinion", not "disabled": the field only
     // exists on newer gateways, and treating its absence as a veto would hide
     // every model behind a filter the operator never asked to tighten. Only an
     // explicit `false` disables.
-    if (!c || c.isActive === false) continue;
-    if (typeof c.testStatus === "string" && c.testStatus !== "active") continue;
-    if (typeof c.provider === "string" && c.provider.length > 0) {
+    const usable = c.isActive !== false && !(typeof c.testStatus === "string" && c.testStatus !== "active");
+    if (usable && typeof c.provider === "string" && c.provider.length > 0) {
       usableCanonicals.add(c.provider);
     }
+    const data = c.providerSpecificData;
+    if (data !== null && typeof data === "object") {
+      const prefix = (data as { prefix?: unknown }).prefix;
+      if (typeof prefix === "string" && prefix.trim().length > 0) {
+        const trimmed = prefix.trim();
+        prefixUsable.set(trimmed, (prefixUsable.get(trimmed) ?? false) || usable);
+      }
+    }
   }
-  const aliases = new Set<string>();
-  const knownAliases = new Set<string>();
+
   if (enrichment) {
     for (const entry of enrichment.values()) {
       const alias = entry.providerAlias;
@@ -129,28 +144,44 @@ export function usableProviderAliasSet(
     }
   }
   for (const canonical of usableCanonicals) aliases.add(canonical);
+  for (const [prefix, usable] of prefixUsable) {
+    knownAliases.add(prefix);
+    if (usable) aliases.add(prefix);
+  }
   return { aliases, canonicals: usableCanonicals, knownAliases };
 }
 
 /**
+ * Whether `prefix` names a provider the gateway described, in any spelling it
+ * uses for it (public prefix, display prefix, or canonical node id).
+ */
+function resolvesTo(usable: UsableProviderSet, prefix: string): boolean {
+  return usable.aliases.has(prefix) || usable.canonicals.has(prefix);
+}
+
+/**
  * Decide whether a raw `/v1/models` id passes the usableOnly filter.
- * Rules (subtract-filter, bias toward keep): no `/` -> keep; usable alias
- * or canonical -> keep; unknown to both tables -> keep; known alias but not
- * usable -> drop.
+ *
+ * Three states, subtract-filter, biased toward keep:
+ *   - no `/` (bare id)                         -> keep
+ *   - resolves to a usable provider            -> keep
+ *   - unknown to every table                   -> keep (cannot prove unroutable)
+ *   - resolves to a known, unusable provider   -> drop
  */
 export function isUsableRawModelId(id: string, usable: UsableProviderSet): boolean {
   const slash = id.indexOf("/");
   if (slash <= 0) return true;
   const prefix = id.slice(0, slash);
-  if (usable.aliases.has(prefix) || usable.canonicals.has(prefix)) return true;
+  if (resolvesTo(usable, prefix)) return true;
   if (usable.knownAliases.has(prefix)) return false;
   return true;
 }
 
 /**
  * Decide whether a combo passes the usableOnly filter. A combo keeps when AT
- * LEAST ONE member maps to a usable provider; unknown prefixes keep (cannot
- * prove unroutable); combos with zero resolvable members keep.
+ * LEAST ONE member maps to a usable provider or to a provider nobody
+ * described; it drops only when every resolvable member is known-unusable.
+ * Combos with zero resolvable members keep.
  */
 export function isUsableCombo(combo: OmniRouteRawCombo, usable: UsableProviderSet): boolean {
   const steps = Array.isArray(combo.models) ? combo.models : [];
@@ -163,7 +194,7 @@ export function isUsableCombo(combo: OmniRouteRawCombo, usable: UsableProviderSe
     if (slash <= 0) continue;
     sawResolvableMember = true;
     const prefix = modelId.slice(0, slash);
-    if (usable.aliases.has(prefix) || usable.canonicals.has(prefix)) return true;
+    if (resolvesTo(usable, prefix)) return true;
     if (!usable.knownAliases.has(prefix)) return true;
   }
   if (!sawResolvableMember) return true;

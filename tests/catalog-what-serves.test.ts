@@ -498,7 +498,10 @@ describe("usage memory option", () => {
       );
       const restored = collected.entries.get("omniroute/dg/nova-3");
       assert.ok(restored);
-      assert.match(JSON.stringify(restored), /Deepgram/);
+      // The marker carries the SERVED prefix (`dg`), not the enrichment
+      // slot's own alias (`deepgram`): the title must name the provider the
+      // request actually routes to. The friendly name still leads.
+      assert.match(JSON.stringify(restored), /Nova 3 \(Transcription\) \(dg\)/);
     });
   });
 });

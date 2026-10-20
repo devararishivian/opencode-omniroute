@@ -14,17 +14,18 @@ function model(id: string, name = id): ModelV2 {
 describe("the enrichment overlay reaches the picker", () => {
   it("renders the upstream provider a model routes to", () => {
     const m = applyEnrichment(model("cc/sonnet"), {
-      name: "Claude Sonnet 4.6",
+      name: "the model 4.6",
       providerDisplayName: "Claude",
       providerAlias: "cc",
     });
-    assert.equal(m.name, "Claude - Claude Sonnet 4.6");
+    assert.equal(m.name, "the model 4.6 (cc)");
   });
 
   it("marks a free model and states the budget the user actually gets", () => {
     const m = applyEnrichment(model("pol/grok"), {
       name: "Grok 4 Fast",
       providerDisplayName: "Pollinations",
+      providerAlias: "pol",
       freeType: "recurring-monthly" as const,
       monthlyTokens: 1_000_000,
     });
@@ -35,16 +36,27 @@ describe("the enrichment overlay reaches the picker", () => {
       /tokens\/month/,
       "the budget the gateway reports is stated, not just the fact it is free"
     );
-    assert.equal(m.name, "[Free] Pollinations - Grok 4 Fast · 1M tokens/month");
+    assert.equal(m.name, "[Free] Grok 4 Fast (pol) · 1M tokens/month");
   });
 
   it("drops the tag when the caller turns it off", () => {
     const m = applyEnrichment(
       model("cc/sonnet"),
-      { name: "Claude Sonnet 4.6", providerDisplayName: "Claude" },
+      { name: "the model 4.6", providerDisplayName: "Claude" },
       { providerTag: false }
     );
-    assert.equal(m.name, "Claude Sonnet 4.6");
+    assert.equal(m.name, "the model 4.6");
+  });
+
+  it("prefers the resolved provider label over the enrichment alias", () => {
+    // The identity index resolves the served prefix; the enrichment row only
+    // knows its own slot key, which may be a node id.
+    const m = applyEnrichment(
+      model("openagentic/deepseek-v4-flash"),
+      { name: "DeepSeek V4 Flash", providerAlias: "openai-compatible-chat-abc" },
+      { providerLabel: "openagentic" }
+    );
+    assert.equal(m.name, "DeepSeek V4 Flash (openagentic)");
   });
 
   it("never tags a combo: it routes across providers, not to one", () => {
@@ -72,7 +84,7 @@ describe("free budget under alias and without cap", () => {
       freeType: "recurring-monthly" as const,
       monthlyTokens: 1_000_000,
     });
-    assert.equal(m.name, "[Free] Cloudflare - Llama 3.3 70B · 1M tokens/month");
+    assert.equal(m.name, "[Free] Llama 3.3 70B (cf) · 1M tokens/month");
   });
 
   it("renders the uncapped label with no counters", () => {

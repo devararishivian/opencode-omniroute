@@ -19,6 +19,11 @@ import {
   passesCapabilityPresets,
 } from "./capability-presets.js";
 import {
+  buildProviderIdentityIndex,
+  resolveProviderForModel,
+  type ProviderIdentityIndex,
+} from "./provider-identity.js";
+import {
   isHttpUrl,
   type ApiFormatV2,
   type LogLevel,
@@ -558,22 +563,43 @@ async function resolveEnrichmentOverlay(
   }
 }
 
+/** Everything the identity pass learns about the gateway in one refresh. */
+interface ProviderSources {
+  /** `undefined` when the filter cannot be evaluated; the catalog then publishes whole. */
+  usable: ReturnType<typeof usableProviderAliasSet> | undefined;
+  /** Built from enrichment always, plus connections when they were fetched. */
+  identity: ProviderIdentityIndex;
+  /** Raw connections, when the fetch succeeded. Empty otherwise. */
+  connections: OmniRouteProviderConnection[];
+}
+
 /**
- * Resolve the provider aliases worth publishing when `usableOnly` is on.
- * Gated on the flag, so the default configuration issues no request at all.
- * The filter subtracts: a failed or empty connections fetch yields
- * `undefined` and keeps the whole catalog, because only a prefix proven not
- * provisioned may be dropped.
+ * Resolve the provider vocabulary and the usableOnly filter in one pass.
+ *
+ * The connections fetch is gated on `usableOnly` (default on). When it is off
+ * no request is issued and the identity index is built from enrichment alone,
+ * which still carries each slot's public prefix — so display labels stay
+ * correct without a second call.
+ *
+ * The filter subtracts: a failed or empty connections fetch yields `undefined`
+ * and keeps the whole catalog, because only a prefix proven not provisioned
+ * may be dropped.
  */
-async function resolveUsableAliases(
+async function resolveProviderSources(
   opts: ResolvedOptions,
   providersFetcher: OmniRouteProvidersFetcher | undefined,
   onSourceError: ((endpoint: string, reason: string) => void) | undefined,
   enrichment: OmniRouteEnrichmentMap,
   timeoutMs: number,
   log: Logger
-): Promise<ReturnType<typeof usableProviderAliasSet> | undefined> {
-  if (!opts.usableOnly) return undefined;
+): Promise<ProviderSources> {
+  if (!opts.usableOnly) {
+    return {
+      usable: undefined,
+      identity: buildProviderIdentityIndex({ enrichment }),
+      connections: [],
+    };
+  }
   let rawConnections: OmniRouteProviderConnection[];
   try {
     const fetchProviders = providersFetcher ?? defaultOmniRouteProvidersFetcher;
@@ -589,7 +615,11 @@ async function resolveUsableAliases(
     );
     rawConnections = [];
   }
-  return rawConnections.length > 0 ? usableProviderAliasSet(rawConnections, enrichment) : undefined;
+  return {
+    usable: rawConnections.length > 0 ? usableProviderAliasSet(rawConnections, enrichment) : undefined,
+    identity: buildProviderIdentityIndex({ connections: rawConnections, enrichment }),
+    connections: rawConnections,
+  };
 }
 
 /** Everything the combo collection pass reads, passed as one value. */
@@ -853,7 +883,7 @@ export async function collectCatalog(
     }
   }
 
-  const usable = await resolveUsableAliases(
+  const sources = await resolveProviderSources(
     opts,
     providersFetcher,
     fetchers?.onSourceError,
@@ -861,6 +891,8 @@ export async function collectCatalog(
     modelsTimeout,
     log
   );
+  const usable = sources.usable;
+  const identity = sources.identity;
 
   // Provider allowlist (same seam as the allowlists above, applied last):
   // compiled once here, then one predicate per collection point.
@@ -972,6 +1004,7 @@ export async function collectCatalog(
     );
     applyEnrichment(mapped, enrichmentEntry, {
       providerTag: opts.providerTag !== false,
+      providerLabel: resolveProviderForModel(identity, entry.id, entry.owned_by)?.label,
     });
     if (
       !passesCapabilityPresets(mapped, enrichmentEntry, {
@@ -1016,6 +1049,7 @@ export async function collectCatalog(
       );
       applyEnrichment(mapped, restoreEnrichment, {
         providerTag: opts.providerTag !== false,
+        providerLabel: resolveProviderForModel(identity, entry.id, entry.owned_by)?.label,
       });
       if (
         !passesCapabilityPresets(mapped, restoreEnrichment, {
