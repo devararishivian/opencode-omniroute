@@ -834,6 +834,22 @@ async function publishCombos(
  * behavior identical to the beta path while the only host touchpoint is the
  * single `editor.add` in the payload builder.
  */
+/**
+ * Whether a raw `/v1/models` row names a model at all.
+ *
+ * The gateway occasionally serves rows whose id is only a provider prefix with
+ * nothing after it (`antigravity/`), which publishes as an empty model that
+ * renders as a blank line in the picker. A row with no model segment is not a
+ * model, so it is dropped here rather than displayed.
+ */
+export function isPublishableRawModelId(id: unknown): id is string {
+  if (typeof id !== "string") return false;
+  if (id.length === 0) return false;
+  if (id.endsWith("/")) return false;
+  if (id.startsWith("/")) return false;
+  return true;
+}
+
 export interface CollectedCatalog {
   entries: Map<string, LegacyModel>;
   counts: PublishCounts;
@@ -865,6 +881,10 @@ export async function collectCatalog(
     );
     return empty;
   }
+
+  // A prefix-only row is not a model; drop it before any filter sees it so it
+  // cannot occupy a showcase slot either.
+  rawModels = rawModels.filter((entry) => isPublishableRawModelId(entry.id));
 
   const catalogAll = opts.visibleModels?.includes("*") === true;
   const visibleFilter = catalogAll ? undefined : compileModelListFilter(opts.visibleModels);

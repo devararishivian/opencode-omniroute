@@ -204,7 +204,12 @@ export function toResolvedOptions(parsed: PluginOptions): ResolvedOptions {
         : DEFAULT_MODEL_CACHE_TTL_MS,
     displayName: parsed.displayName,
     apiFormat: parsed.apiFormat,
-    visibleModels: parsed.visibleModels,
+    // The plugin publishes the whole served catalog by default. Upstream's
+    // showcase view caps each provider at ten models, which silently hid
+    // models a user had already selected (the picker then called them
+    // "unavailable"). `visibleModels: ["*"]` is that full view, so an absent
+    // list maps to it; anything narrower is an explicit choice.
+    visibleModels: parsed.visibleModels ?? ["*"],
     hiddenModels: parsed.hiddenModels,
     providersAllow: parsed.providersAllow,
     usableOnly: parsed.usableOnly,
