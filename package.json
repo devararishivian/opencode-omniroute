@@ -13,6 +13,8 @@
   },
   "files": [
     "dist",
+    "docs/configuration.md",
+    "docs/migration.md",
     "server.js",
     "README.md",
     "LICENSE",
