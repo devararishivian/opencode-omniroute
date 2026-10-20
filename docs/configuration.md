@@ -147,7 +147,8 @@ drives free budgets. Each is optional:
 - a refusal or failure keeps the last known value (memory or the on-disk
   snapshot) and warns once per endpoint;
 - with no last known value, the catalog publishes from `/v1/models` alone;
-- an empty successful answer is treated as a real answer, not an outage.
+- an empty `/api/providers` answer keeps the full catalog and warns, because
+  "no connections described" is not proof that a served prefix is unroutable.
 
 `usableOnly` drops only what it can prove unroutable: a connection that is
 explicitly disabled, or whose health check reported something other than

@@ -617,8 +617,22 @@ async function resolveProviderSources(
     );
     rawConnections = [];
   }
+  // An empty answer is not an allowlist of nothing: the gateway describing no
+  // connections cannot prove a served prefix unroutable, and treating it as
+  // proof would empty the picker over a gateway bug. Keep the catalog and say
+  // the filter could not be applied.
+  if (rawConnections.length === 0) {
+    log.warn(
+      "[omniroute-v2] /api/providers returned no connections, usableOnly could not be evaluated; publishing the full served catalog."
+    );
+    return {
+      usable: undefined,
+      identity: buildProviderIdentityIndex({ enrichment }),
+      connections: [],
+    };
+  }
   return {
-    usable: rawConnections.length > 0 ? usableProviderAliasSet(rawConnections, enrichment) : undefined,
+    usable: usableProviderAliasSet(rawConnections, enrichment),
     identity: buildProviderIdentityIndex({ connections: rawConnections, enrichment }),
     connections: rawConnections,
   };
