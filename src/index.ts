@@ -33,6 +33,9 @@ import {
   resolveTimeouts,
   toResolvedOptions,
 } from "./options.js";
+import { OmniRouteWebClient } from "./web/client.js";
+import { registerWebFetch } from "./web/fetch.js";
+import { registerWebSearch } from "./web/search.js";
 
 /**
  * A fetch result that says whether it succeeded. Returning a bare `[]` on
@@ -567,6 +570,56 @@ export default Plugin.define({
         log.warn(
           `[omniroute-v2] host refused the sdk hook, inference telemetry will not be marked: ${err instanceof Error ? err.message : String(err)}`
         );
+      }
+    }
+
+    /**
+     * Optional web tools. Both are off unless the user asked for them, and
+     * neither may cost the catalog anything: a host without the domain, or a
+     * refused registration, only drops that one feature.
+     */
+    const web = resolved.web;
+    const webDisplayName = parsed.displayName ?? "OmniRoute";
+    if (web !== undefined && (web.search.enabled || web.fetch.enabled)) {
+      const client = new OmniRouteWebClient({
+        baseURL: resolved.baseURL,
+        apiKey: resolved.apiKey,
+        timeoutMs: web.timeoutMs,
+        logger: log,
+      });
+      if (web.search.enabled) {
+        const host = ctx.websearch as unknown as
+          | Parameters<typeof registerWebSearch>[0]
+          | undefined;
+        if (host?.transform === undefined) {
+          log.warn(
+            "[oc-omniroute] web.search is enabled but this host has no websearch domain; search stays unchanged."
+          );
+        } else {
+          try {
+            await registerWebSearch(host, client, web, X, webDisplayName, log);
+          } catch (err) {
+            log.warn(
+              `[oc-omniroute] websearch registration failed, search stays on OpenCode's own provider: ${err instanceof Error ? err.message : String(err)}`
+            );
+          }
+        }
+      }
+      if (web.fetch.enabled) {
+        const host = ctx as unknown as Parameters<typeof registerWebFetch>[0] | undefined;
+        if (host?.tool?.transform === undefined || host.permission?.assert === undefined) {
+          log.warn(
+            "[oc-omniroute] web.fetch is enabled but this host has no tool/permission domain; webfetch stays built-in."
+          );
+        } else {
+          try {
+            await registerWebFetch(host, client, web, log);
+          } catch (err) {
+            log.warn(
+              `[oc-omniroute] webfetch registration failed, the built-in tool stays in place: ${err instanceof Error ? err.message : String(err)}`
+            );
+          }
+        }
       }
     }
 
