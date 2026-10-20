@@ -306,6 +306,54 @@ export default Plugin.define({
      * Skipped when a newer refresh has already replaced that snapshot, so a
      * slow tier can never resurrect a stale catalog.
      */
+    let latest: { info: unknown; models: unknown[] } | undefined;
+    /**
+     * Project one snapshot onto the payload the host reads.
+     *
+     * Extracted because the payload has to be rebuilt twice: once for the
+     * first publish, and again when the optional tier lands. Reusing only the
+     * reload path left `latest` holding the empty-enrichment projection, so
+     * the picker kept raw ids for the whole TTL even though the snapshot on
+     * disk already had names.
+     */
+    /**
+     * Enrichment entry count of the payload currently published. A projection
+     * carrying fewer entries is a regression: it is the same catalog with less
+     * metadata, which is exactly the stale empty-enrichment view racing the
+     * late upgrade. Skipping it keeps names on screen instead of flickering
+     * back to raw ids.
+     */
+    let projectedEnrichment = 0;
+    const projectSnapshot = async (
+      snapshot: CatalogSnapshot
+    ): Promise<{ models: number; combos: number }> => {
+      const incoming = snapshot.enrichment?.size ?? 0;
+      if (incoming < projectedEnrichment) {
+        log.debug(
+          `[omniroute-v2] skipping a projection with fewer enrichment entries (${incoming} < ${projectedEnrichment})`
+        );
+        return { models: 0, combos: 0 };
+      }
+      try {
+        const collected = await collectCatalog(resolved, {
+          onSourceError: reportSourceError,
+          models: async () => snapshot.models,
+          combos: async () => snapshot.combos,
+          providers: async () => snapshot.providers ?? [],
+          enrichment: async () => snapshot.enrichment ?? new Map(),
+        });
+        const payload = buildProviderPayload(collected, resolved);
+        latest = payload as unknown as { info: unknown; models: unknown[] };
+        projectedEnrichment = incoming;
+        return collected.counts;
+      } catch (err) {
+        log.warn(
+          `[omniroute-v2] catalog publish failed, keeping current catalog: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return { models: 0, combos: 0 };
+      }
+    };
+
     async function upgradeWithOptional(
       base: CatalogSnapshot,
       [combos, providers, enrichment]: [
@@ -329,6 +377,11 @@ export default Plugin.define({
         upgraded.enrichment === base.enrichment;
       if (unchanged) return;
       state.entries.set(cacheKey, upgraded);
+      // Rebuild the payload BEFORE reloading: the host replays the transform,
+      // which publishes `latest`, so a reload without this projection would
+      // re-publish the empty-enrichment version and leave raw ids in the
+      // picker until the TTL expires.
+      await projectSnapshot(upgraded);
       if (upgraded.models.length > 0) {
         await writeDiskSnapshot(X, upgraded, identityFingerprint, log);
       }
@@ -406,12 +459,14 @@ export default Plugin.define({
     // The transform callback is synchronous, so it cannot await the fetch:
     // setup publishes first, then the host replays the callback (during
     // registration and on every reload) and reads the published snapshot.
-    let latest: { info: unknown; models: unknown[] } | undefined;
     const refreshAndPublish = async (): Promise<void> => {
       await ensureCredential();
       await ensureWarmSnapshot();
       const snapshot = await loadSnapshot();
-      let effective = snapshot;
+      // The optional tier may have replaced the entry while this refresh was
+      // waiting. Project the freshest copy, or a late enrichment is
+      // overwritten by the stale view that was read a moment earlier.
+      let effective = state.entries.get(cacheKey) ?? snapshot;
       if (snapshot.models.length === 0) {
         const stale = state.entries.get(cacheKey);
         if (stale !== undefined && stale.models.length > 0) {
@@ -421,30 +476,7 @@ export default Plugin.define({
           effective = stale;
         }
       }
-      const counts = await (async (): Promise<{
-        models: number;
-        combos: number;
-      }> => {
-        // fetcher-level fail-open covers fetches; this guard covers mapper throws.
-        try {
-          const collected = await collectCatalog(resolved, {
-            onSourceError: reportSourceError,
-            models: async () => effective.models,
-            combos: async () => effective.combos,
-            providers: async () => effective.providers ?? [],
-            enrichment: async () => effective.enrichment ?? new Map(),
-          });
-          const payload = buildProviderPayload(collected, resolved);
-          latest = payload as unknown as { info: unknown; models: unknown[] };
-          return collected.counts;
-        } catch (err) {
-          log.warn(
-            `[omniroute-v2] catalog publish failed, keeping current catalog: ${err instanceof Error ? err.message : String(err)}`
-          );
-          return { models: 0, combos: 0 };
-        }
-      })();
-      void counts;
+      void (await projectSnapshot(effective));
       const fingerprint = catalogContentFingerprint(effective.models, effective.combos);
       const changed = state.fingerprint !== undefined && state.fingerprint !== fingerprint;
       state.fingerprint = fingerprint;
