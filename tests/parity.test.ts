@@ -221,9 +221,17 @@ describe("v1-vs-v2 catalog parity", () => {
         providerId: "omniroute",
         baseURL: TEST_OPTS.baseURL,
       });
+      // `variants` is the one documented divergence: v2 offers the three
+      // levels OpenCode uses when the gateway declares reasoning without
+      // tiers, where v1 offered nothing and left the control disabled.
+      const withoutVariants = (value: object): object => {
+        const copy = JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+        delete copy["variants"];
+        return copy;
+      };
       assert.deepEqual(
-        JSON.parse(JSON.stringify({ ...viaShared, providerID: undefined })),
-        JSON.parse(JSON.stringify({ ...(expected as object), providerID: undefined })),
+        withoutVariants({ ...viaShared, providerID: undefined }),
+        withoutVariants({ ...(expected as object), providerID: undefined }),
         `model mapper parity for ${entry.id}`
       );
     }
