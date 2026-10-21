@@ -48,6 +48,14 @@
   "packageManager": "bun@1.4.3",
   "license": "MIT",
   "author": "devvara",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devararishivian/opencode-omniroute.git"
+  },
+  "homepage": "https://github.com/devararishivian/opencode-omniroute#readme",
+  "bugs": {
+    "url": "https://github.com/devararishivian/opencode-omniroute/issues"
+  },
   "keywords": [
     "omniroute",
     "opencode",
@@ -56,7 +64,13 @@
     "ai-sdk",
     "openai-compatible",
     "provider",
-    "catalog"
+    "catalog",
+    "coding-agent",
+    "ai-agent",
+    "ai-gateway",
+    "model-router",
+    "web-search",
+    "web-fetch"
   ],
   "publishConfig": {
     "access": "public"
