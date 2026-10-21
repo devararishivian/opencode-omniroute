@@ -30,8 +30,8 @@ jobs:
       - name: Check TypeScript types
         run: bun run typecheck
 
-      - name: Run test suite
-        run: bun run test
-
       - name: Build bundle & types
         run: bun run build
+
+      - name: Run test suite
+        run: bun run test
