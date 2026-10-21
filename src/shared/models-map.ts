@@ -5,6 +5,12 @@ export interface OmniRouteRawModelEntry {
   id: string;
   object?: string;
   owned_by?: string;
+  /** Row kind: `chat` (default), `image`, `embedding`, `rerank`, `audio`, `video`, `pdf`. */
+  type?: string;
+  /** Synced/custom models carry the tiers at the top level instead of under `capabilities`. */
+  effort_tiers?: string[];
+  /** Tool-calling flag on rows that do not nest capabilities. */
+  tool_calling?: boolean;
   root?: string | null;
   parent?: string | null;
   context_length?: number;
@@ -17,6 +23,8 @@ export interface OmniRouteRawModelEntry {
     reasoning?: boolean;
     vision?: boolean;
     thinking?: boolean;
+    /** Gateway spelling used by some rows for `thinking`. */
+    supportsThinking?: boolean;
     attachment?: boolean;
     structured_output?: boolean;
     temperature?: boolean;
@@ -147,6 +155,12 @@ export interface ApiFormatV2 {
 /** Default v1 prefix list, kept so copied v1 configs keep routing. */
 export const DEFAULT_ANTHROPIC_PREFIXES_V1 = ["cc", "claude", "anthropic", "kiro", "kr"];
 
+/**
+ * Effort tiers OpenCode assumes for a reasoning model when the provider does
+ * not say. Used only when the gateway declares reasoning without tiers.
+ */
+export const DEFAULT_EFFORT_TIERS = ["low", "medium", "high"] as const;
+
 const warnedPrefixLists = new Set<string>();
 
 function warnDeprecatedPrefixesOnce(prefixes: string[]): void {
@@ -270,12 +284,32 @@ export function mapRawModelToModelV2(
   // invented [low, medium, high] fallback). Blind: filtering/exclusion rules
   // live server-side. Absent/empty/malformed => key omitted ENTIRELY (an
   // empty variants object would suppress opencode's fallback for this model).
-  const declaredTiers = Array.isArray(caps.effort_tiers)
-    ? caps.effort_tiers.filter((t): t is string => typeof t === "string" && t.length > 0)
-    : [];
-  const variants =
+  // The gateway spells the tiers in two places: under `capabilities` on
+  // curated models, and top level on synced/custom ones. Reading only the
+  // nested copy silently disabled thinking control for every model the
+  // gateway learned instead of curated.
+  const rawTiers = Array.isArray(raw.effort_tiers)
+    ? raw.effort_tiers
+    : Array.isArray(caps.effort_tiers)
+      ? caps.effort_tiers
+      : [];
+  const declaredTiers = rawTiers.filter((t): t is string => typeof t === "string" && t.length > 0);
+  const reasoning = Boolean(caps.reasoning || caps.thinking || caps.supportsThinking);
+  // OpenCode derives its own variants from the model's `capabilities.reasoning`
+  // and refuses to offer any once `variants` is present but empty, so a
+  // reasoning model the gateway describes without tiers still needs a
+  // selection. Fall back to the three levels OpenCode itself uses; the gateway
+  // declared the capability, and an effort the upstream rejects surfaces as a
+  // normal request error rather than a silently disabled control.
+  const tiers =
     declaredTiers.length > 0
-      ? Object.fromEntries(declaredTiers.map((tier) => [tier, { reasoningEffort: tier }]))
+      ? declaredTiers
+      : reasoning
+        ? [...DEFAULT_EFFORT_TIERS]
+        : [];
+  const variants =
+    tiers.length > 0
+      ? Object.fromEntries(tiers.map((tier) => [tier, { reasoningEffort: tier }]))
       : undefined;
   const inMods = new Set(raw.input_modalities ?? ["text"]);
   const outMods = new Set(raw.output_modalities ?? ["text"]);
