@@ -108,6 +108,10 @@ export class OmniRouteWebClient {
     input: { query: string; maxResults: number },
     signal?: AbortSignal
   ): Promise<OmniRouteSearchResponse> {
+    const trimmed = input.query.trim();
+    if (trimmed.length === 0) {
+      throw new OmniRouteWebError("search query cannot be empty");
+    }
     const body = {
       query: input.query,
       max_results: input.maxResults,
@@ -122,7 +126,14 @@ export class OmniRouteWebClient {
       const url = nonEmptyString(row.url);
       // A result without a URL is not citable, so it is not returned.
       if (url === undefined) continue;
-      const content = isRecord(row.content) ? nonEmptyString(row.content.text) : undefined;
+      const content =
+        typeof row.content === "string"
+          ? nonEmptyString(row.content)
+          : isRecord(row.content)
+            ? nonEmptyString(row.content.text)
+            : undefined;
+      const publishedAt =
+        nonEmptyString(row.published_at) ?? nonEmptyString(row.publishedAt);
       out.push({
         url,
         ...(nonEmptyString(row.title) !== undefined ? { title: nonEmptyString(row.title) } : {}),
@@ -130,9 +141,7 @@ export class OmniRouteWebClient {
           ? { snippet: nonEmptyString(row.snippet) }
           : {}),
         ...(content !== undefined ? { content } : {}),
-        ...(nonEmptyString(row.published_at) !== undefined
-          ? { publishedAt: nonEmptyString(row.published_at) }
-          : {}),
+        ...(publishedAt !== undefined ? { publishedAt } : {}),
       });
     }
     const provider = nonEmptyString(payload.provider);
@@ -153,13 +162,20 @@ export class OmniRouteWebClient {
     },
     signal?: AbortSignal
   ): Promise<OmniRouteFetchResponse> {
-    const body = {
+    const body: Record<string, unknown> = {
       url: input.url,
       format: input.format,
       depth: 0,
       include_metadata: input.includeMetadata,
     };
-    const payload = await this.post("/v1/web/fetch", body, signal);
+    if (input.timeoutSeconds !== undefined) {
+      body.timeout = input.timeoutSeconds;
+    }
+    const timeoutMs =
+      input.timeoutSeconds !== undefined
+        ? Math.round(input.timeoutSeconds * 1000)
+        : this.config.timeoutMs;
+    const payload = await this.post("/v1/web/fetch", body, signal, timeoutMs);
     if (!isRecord(payload)) throw new OmniRouteWebError("fetch response was not an object");
     const content = typeof payload.content === "string" ? payload.content : undefined;
     if (content === undefined) throw new OmniRouteWebError("fetch response had no content");
@@ -184,14 +200,16 @@ export class OmniRouteWebClient {
   private async post(
     path: "/v1/search" | "/v1/web/fetch",
     body: Record<string, unknown>,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    overrideTimeoutMs?: number
   ): Promise<unknown> {
     if (!this.usable) {
       throw new OmniRouteWebError("OmniRoute baseURL or apiKey is missing");
     }
     const endpoint = webEndpoint(this.config.baseURL, path);
+    const timeoutMs = overrideTimeoutMs ?? this.config.timeoutMs;
     // One deadline for the whole request, plus the caller's cancellation.
-    const timeout = AbortSignal.timeout(this.config.timeoutMs);
+    const timeout = AbortSignal.timeout(timeoutMs);
     const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
     let response: Response;
     try {
@@ -212,7 +230,7 @@ export class OmniRouteWebClient {
         throw new OmniRouteWebError("request cancelled", { aborted: true });
       }
       if (timeout.aborted) {
-        throw new OmniRouteWebError(`request timed out after ${this.config.timeoutMs}ms`);
+        throw new OmniRouteWebError(`request timed out after ${timeoutMs}ms`);
       }
       const reason = err instanceof Error ? err.message : String(err);
       throw new OmniRouteWebError(`request failed: ${reason}`);

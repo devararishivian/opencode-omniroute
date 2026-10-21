@@ -273,4 +273,85 @@ describe("OmniRoute web search", () => {
       fetchStub.restore();
     }
   });
+
+  it("rejects empty or whitespace-only search query without network call", async () => {
+    const client = new OmniRouteWebClient({ baseURL: BASE, apiKey: "k", timeoutMs: 1000 });
+    let called = false;
+    const fetchStub = stubFetch(() => {
+      called = true;
+      return json({ results: [] });
+    });
+    try {
+      await assert.rejects(
+        client.search({ query: "", maxResults: 5 }),
+        /empty/i
+      );
+      await assert.rejects(
+        client.search({ query: "   \t\n  ", maxResults: 5 }),
+        /empty/i
+      );
+      assert.equal(called, false, "network call must not be made for empty queries");
+    } finally {
+      fetchStub.restore();
+    }
+  });
+
+  it("handles string content and camelCase publishedAt from search providers", async () => {
+    const client = new OmniRouteWebClient({ baseURL: BASE, apiKey: "k", timeoutMs: 1000 });
+    const fetchStub = stubFetch(() =>
+      json({
+        provider: "tavily",
+        results: [
+          {
+            title: "Direct string content",
+            url: "https://example.com/string-content",
+            snippet: "short snippet",
+            content: "Full markdown text directly as string",
+            publishedAt: "2026-10-21T06:00:00.000Z",
+          },
+        ],
+      })
+    );
+    try {
+      const response = await client.search({ query: "test query", maxResults: 5 });
+      assert.equal(response.results.length, 1);
+      assert.equal(response.results[0]?.content, "Full markdown text directly as string");
+      assert.equal(response.results[0]?.publishedAt, "2026-10-21T06:00:00.000Z");
+
+      const ocResults = toOpenCodeResults(response.results, 5);
+      assert.equal(ocResults[0]?.content, "Full markdown text directly as string");
+      assert.deepEqual(ocResults[0]?.time, { published: Date.parse("2026-10-21T06:00:00.000Z") });
+    } finally {
+      fetchStub.restore();
+    }
+  });
+
+  it("falls back to snippet when content is empty or blank", () => {
+    const ocResults = toOpenCodeResults(
+      [
+        {
+          url: "https://example.com/item",
+          title: "Title",
+          content: "   ",
+          snippet: "Valid snippet",
+        },
+      ],
+      5
+    );
+    assert.equal(ocResults[0]?.content, "Valid snippet");
+  });
+
+  it("preserves unicode, emojis and special characters in queries", async () => {
+    const client = new OmniRouteWebClient({ baseURL: BASE, apiKey: "k", timeoutMs: 1000 });
+    const fetchStub = stubFetch(() => json({ results: [] }));
+    try {
+      const query = "🔍 AI coding 'agents' & \"benchmarks\" 🚀 中文 testing";
+      await client.search({ query, maxResults: 5 });
+      assert.equal(fetchStub.calls.length, 1);
+      const body = fetchStub.calls[0]?.body as Record<string, unknown>;
+      assert.equal(body["query"], query);
+    } finally {
+      fetchStub.restore();
+    }
+  });
 });

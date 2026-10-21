@@ -55,7 +55,10 @@ export function toOpenCodeResults(
   for (const row of results) {
     if (out.length >= maxResults) break;
     const published = row.publishedAt !== undefined ? Date.parse(row.publishedAt) : Number.NaN;
-    const content = row.content ?? row.snippet;
+    const rawContent = typeof row.content === "string" ? row.content.trim() : "";
+    const rawSnippet = typeof row.snippet === "string" ? row.snippet.trim() : "";
+    const content =
+      rawContent.length > 0 ? row.content : rawSnippet.length > 0 ? row.snippet : undefined;
     out.push({
       url: row.url,
       ...(row.title !== undefined ? { title: row.title } : {}),

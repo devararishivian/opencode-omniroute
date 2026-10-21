@@ -346,4 +346,87 @@ describe("OmniRoute webfetch replacement", () => {
       fetchStub.restore();
     }
   });
+
+  it("sends timeout in request body and bounds request to per-request timeout", async () => {
+    const { host, added } = toolHost();
+    const client = new OmniRouteWebClient({ baseURL: BASE, apiKey: "k", timeoutMs: 60_000 });
+    const fetchStub = stubFetch(() => json({ url: "https://example.com/fast", content: "fast page" }));
+    try {
+      await registerWebFetch(
+        host,
+        client,
+        resolveWebOptions({ fetch: { enabled: true } }),
+        silent
+      );
+      await added[0]!.execute({ url: "https://example.com/fast", format: "markdown", timeout: 5 }, CONTEXT);
+      assert.equal(fetchStub.calls.length, 1);
+      const body = fetchStub.calls[0]?.body;
+      assert.equal(body?.["timeout"], 5);
+    } finally {
+      fetchStub.restore();
+    }
+  });
+
+  it("handles empty content without throwing (e.g. 404 returning empty string)", async () => {
+    const { host, added } = toolHost();
+    const client = new OmniRouteWebClient({ baseURL: BASE, apiKey: "k", timeoutMs: 1000 });
+    const fetchStub = stubFetch(() => json({ url: "https://example.com/empty", content: "" }));
+    try {
+      await registerWebFetch(
+        host,
+        client,
+        resolveWebOptions({ fetch: { enabled: true } }),
+        silent
+      );
+      const out = await added[0]!.execute({ url: "https://example.com/empty", format: "markdown" }, CONTEXT);
+      assert.equal(out.output?.output, "");
+      assert.equal(out.content, "");
+    } finally {
+      fetchStub.restore();
+    }
+  });
+
+  it("handles metadata with null or missing fields gracefully", async () => {
+    const { host, added } = toolHost();
+    const client = new OmniRouteWebClient({ baseURL: BASE, apiKey: "k", timeoutMs: 1000 });
+    const fetchStub = stubFetch(() =>
+      json({
+        url: "https://example.com/meta",
+        content: "hello",
+        metadata: { title: null, description: null },
+      })
+    );
+    try {
+      await registerWebFetch(
+        host,
+        client,
+        resolveWebOptions({ fetch: { enabled: true } }),
+        silent
+      );
+      const out = await added[0]!.execute({ url: "https://example.com/meta", format: "markdown" }, CONTEXT);
+      assert.equal(out.output?.output, "hello");
+    } finally {
+      fetchStub.restore();
+    }
+  });
+
+  it("preserves URL query parameters, hash fragments, and encoded characters", async () => {
+    const { host, added } = toolHost();
+    const client = new OmniRouteWebClient({ baseURL: BASE, apiKey: "k", timeoutMs: 1000 });
+    const complexUrl = "https://example.com/search?q=hello%20world&page=2&tags=a,b#section-1";
+    const fetchStub = stubFetch(() => json({ url: complexUrl, content: "result" }));
+    try {
+      await registerWebFetch(
+        host,
+        client,
+        resolveWebOptions({ fetch: { enabled: true } }),
+        silent
+      );
+      const out = await added[0]!.execute({ url: complexUrl, format: "markdown" }, CONTEXT);
+      assert.equal(fetchStub.calls[0]?.body["url"], complexUrl);
+      assert.equal(out.output?.url, complexUrl);
+    } finally {
+      fetchStub.restore();
+    }
+  });
 });
