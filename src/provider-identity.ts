@@ -4,7 +4,7 @@
  * OmniRoute describes the same upstream connection in three places, each with
  * a different vocabulary:
  *
- *   /v1/models        id prefix (`openagentic/deepseek-v4-flash`)
+ *   /v1/models        id prefix (`customprovider/deepseek-v4-flash`)
  *   /api/providers    `provider` = node id (`openai-compatible-chat-<uuid>`),
  *                     `providerSpecificData.prefix` = the public prefix
  *   /api/pricing/models  slot key (often the node id) + `displayPrefix`
@@ -24,7 +24,7 @@
  *   4. unverified: the served prefix is its own label and no metadata is
  *      borrowed from an unrelated slot.
  *
- * Nested ids keep their first segment as the prefix (`no-think/openagentic/x`
+ * Nested ids keep their first segment as the prefix (`no-think/customprovider/x`
  * is provider `no-think`); the module never reinterprets the rest.
  */
 import type { OmniRouteEnrichmentEntry, OmniRouteEnrichmentMap } from "./shared/enrich.js";
@@ -77,8 +77,8 @@ function connectionPrefix(connection: OmniRouteProviderConnection): string | und
 }
 
 /**
- * The operator's own name for the connection, e.g. `OpenAgentic` for prefix
- * `openagentic`. This is the only source of the brand's real casing, so a
+ * The operator's own name for the connection, e.g. `CustomProvider` for prefix
+ * `customprovider`. This is the only source of the brand's real casing, so a
  * title built from it does not have to guess.
  */
 function connectionLabel(connection: OmniRouteProviderConnection): string | undefined {
@@ -137,7 +137,7 @@ function labelFor(
   displayPrefix: string | undefined,
   configuredLabel: string | undefined
 ): string {
-  // The operator's name wins: it carries the brand's casing (`OpenAgentic`),
+  // The operator's name wins: it carries the brand's casing (`CustomProvider`),
   // which a prefix never does.
   if (configuredLabel !== undefined && configuredLabel.length > 0) return configuredLabel;
   if (!isGeneratedNodeId(prefix)) return prefix;
@@ -290,7 +290,7 @@ export function buildProviderIdentityIndex(
 export function servedPrefixOf(modelId: string): string | undefined {
   if (typeof modelId !== "string") return undefined;
   const parts = modelId.split("/");
-  // `no-think/openagentic/x`: `no-think` is a wrapper namespace, and the
+  // `no-think/customprovider/x`: `no-think` is a wrapper namespace, and the
   // provider the request actually routes to is the segment after it. Only a
   // known wrapper is stripped; an unknown first segment stays the provider, so
   // a genuinely new provider is never silently relabelled.

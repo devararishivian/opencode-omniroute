@@ -52,11 +52,11 @@ describe("the enrichment overlay reaches the picker", () => {
     // The identity index resolves the served prefix; the enrichment row only
     // knows its own slot key, which may be a node id.
     const m = applyEnrichment(
-      model("openagentic/deepseek-v4-flash"),
+      model("customprovider/deepseek-v4-flash"),
       { name: "DeepSeek V4 Flash", providerAlias: "openai-compatible-chat-abc" },
-      { providerLabel: "openagentic" }
+      { providerLabel: "customprovider" }
     );
-    assert.equal(m.name, "Openagentic - DeepSeek V4 Flash");
+    assert.equal(m.name, "Customprovider - DeepSeek V4 Flash");
   });
 
   it("never tags a combo: it routes across providers, not to one", () => {

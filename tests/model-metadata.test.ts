@@ -10,7 +10,7 @@ const ctx = { providerId: "omniroute", baseURL: "https://gw.example.com" };
 
 describe("chat models only", () => {
   it("keeps a plain chat row", () => {
-    assert.equal(isChatModel({ id: "openagentic/kimi-k3" }), true);
+    assert.equal(isChatModel({ id: "customprovider/kimi-k3" }), true);
     assert.equal(isChatModel({ id: "x", output_modalities: ["text"] }), true);
     assert.equal(isChatModel({ id: "x", type: "chat" }), true);
   });
@@ -92,11 +92,11 @@ describe("the operator's own label wins", () => {
           provider: "openai-compatible-chat-abc",
           isActive: true,
           testStatus: "active",
-          providerSpecificData: { prefix: "openagentic", nodeName: "OpenAgentic" },
+          providerSpecificData: { prefix: "customprovider", nodeName: "CustomProvider" },
         },
       ],
     });
-    assert.equal(providerLabelFor(index, "openagentic"), "OpenAgentic");
+    assert.equal(providerLabelFor(index, "customprovider"), "CustomProvider");
   });
 
   it("falls back to the prefix when the connection has no name", () => {
@@ -111,10 +111,10 @@ describe("the operator's own label wins", () => {
 
 describe("a served model carries identity even without enrichment", () => {
   it("never leaves a model with only its raw id as the name", () => {
-    const entry: OmniRouteRawModelEntry = { id: "openagentic/deepseek-v4.1-flash" };
+    const entry: OmniRouteRawModelEntry = { id: "customprovider/deepseek-v4.1-flash" };
     const mapped = mapRawModelToModelV2(entry, ctx);
     // The mapper alone still falls back to the id; the catalog applies the
     // overlay with an empty entry so the humaniser and marker run.
-    assert.equal(mapped.name, "openagentic/deepseek-v4.1-flash");
+    assert.equal(mapped.name, "customprovider/deepseek-v4.1-flash");
   });
 });

@@ -36,11 +36,11 @@ describe("non-chat rows never reach the picker", () => {
       { id: "openrouter/baai/bge-m3", type: "embedding" },
       { id: "openrouter/cohere/rerank-v3.5", type: "rerank" },
       { id: "openrouter/openai/gpt-image-2.5-flare", output_modalities: ["image"] },
-      { id: "openagentic/kimi-k3", output_modalities: ["text"] },
+      { id: "customprovider/kimi-k3", output_modalities: ["text"] },
     ]);
     assert.deepEqual(
       payload.models.map((m) => m.modelID),
-      ["openagentic/kimi-k3"]
+      ["customprovider/kimi-k3"]
     );
   });
 
@@ -49,16 +49,16 @@ describe("non-chat rows never reach the picker", () => {
     // generation or embedding rows (e.g. `ali-qwen-image-*`, `nemotron-*-embed-*`).
     // These cannot handle chat completions and must never reach the chat picker.
     const payload = await publish([
-      { id: "openagentic/ali-qwen-image-2.0-pro" },
-      { id: "openagentic/ali-wan2.7-image" },
-      { id: "openagentic/ali-z-image-turbo" },
+      { id: "customprovider/ali-qwen-image-2.0-pro" },
+      { id: "customprovider/ali-wan2.7-image" },
+      { id: "customprovider/ali-z-image-turbo" },
       { id: "nvidia/nvidia/nemotron-3.5-embed-1b" },
-      { id: "openagentic/deepseek-v4-flash-vision-exp" }, // vision chat is kept!
-      { id: "openagentic/kimi-k3" },
+      { id: "customprovider/deepseek-v4-flash-vision-exp" }, // vision chat is kept!
+      { id: "customprovider/kimi-k3" },
     ]);
     assert.deepEqual(
       payload.models.map((m) => m.modelID),
-      ["openagentic/deepseek-v4-flash-vision-exp", "openagentic/kimi-k3"]
+      ["customprovider/deepseek-v4-flash-vision-exp", "customprovider/kimi-k3"]
     );
   });
 });
@@ -68,21 +68,21 @@ describe("flat effort rows fold into their base model", () => {
     // The base model already offers every level as a variant, so publishing
     // `kimi-k3-high` as its own model shows a duplicate with another name.
     const payload = await publish([
-      { id: "openagentic/kimi-k3", capabilities: { reasoning: true, effort_tiers: ["low", "high"] } },
-      { id: "openagentic/kimi-k3-high", capabilities: { reasoning: true } },
-      { id: "openagentic/kimi-k3-low", capabilities: { reasoning: true } },
+      { id: "customprovider/kimi-k3", capabilities: { reasoning: true, effort_tiers: ["low", "high"] } },
+      { id: "customprovider/kimi-k3-high", capabilities: { reasoning: true } },
+      { id: "customprovider/kimi-k3-low", capabilities: { reasoning: true } },
     ]);
     assert.deepEqual(
       payload.models.map((m) => m.modelID),
-      ["openagentic/kimi-k3"]
+      ["customprovider/kimi-k3"]
     );
   });
 
   it("keeps the level row when its base is not served", async () => {
-    const payload = await publish([{ id: "openagentic/model-high", capabilities: { reasoning: true } }]);
+    const payload = await publish([{ id: "customprovider/model-high", capabilities: { reasoning: true } }]);
     assert.deepEqual(
       payload.models.map((m) => m.modelID),
-      ["openagentic/model-high"]
+      ["customprovider/model-high"]
     );
   });
 });
@@ -91,7 +91,7 @@ describe("names come from the operator and the id", () => {
   it("uses nodeName and humanises an id-only name", async () => {
     const opts = { ...baseOpts, baseURL: "https://gw.example.com", enrichment: true };
     const collected = await collectCatalog(opts as never, {
-      models: async () => [{ id: "openagentic/deepseek-v4.1-flash" }] as never,
+      models: async () => [{ id: "customprovider/deepseek-v4.1-flash" }] as never,
       combos: async () => [],
       providers: async () =>
         [
@@ -100,7 +100,7 @@ describe("names come from the operator and the id", () => {
             provider: "openai-compatible-chat-abc",
             isActive: true,
             testStatus: "active",
-            providerSpecificData: { prefix: "openagentic", nodeName: "OpenAgentic" },
+            providerSpecificData: { prefix: "customprovider", nodeName: "CustomProvider" },
           },
         ] as never,
       enrichment: async () => new Map(),
@@ -108,50 +108,50 @@ describe("names come from the operator and the id", () => {
     const payload = buildProviderPayload(collected, opts as never) as {
       models: Array<{ name: string }>;
     };
-    assert.equal(payload.models[0]?.name, "OpenAgentic - Deepseek v4.1 Flash");
+    assert.equal(payload.models[0]?.name, "CustomProvider - Deepseek v4.1 Flash");
   });
 
   it("keeps the free marker on an id that ends in -free", async () => {
     const payload = await publish([
-      { id: "openagentic/deepseek-v4.1-flash" },
-      { id: "openagentic/deepseek-v4.1-flash-free" },
+      { id: "customprovider/deepseek-v4.1-flash" },
+      { id: "customprovider/deepseek-v4.1-flash-free" },
     ]);
     const free = payload.models.find((m) => m.modelID.endsWith("-free"));
     assert.ok(free);
-    assert.equal(free.name, "[Free] Openagentic - Deepseek v4.1 Flash");
+    assert.equal(free.name, "[Free] Customprovider - Deepseek v4.1 Flash");
   });
 
   it("keeps nested namespaces distinguishable in titles", async () => {
-    // `no-think/cosmoshub/x` and `no-think/openagentic/x` both route through the
+    // `no-think/myprovider/x` and `no-think/customprovider/x` both route through the
     // no-think wrapper to different connections. The title must name the
     // connection, otherwise the two read as one model.
     const payload = await publish([
-      { id: "no-think/cosmoshub/claude-opus-5" },
-      { id: "no-think/openagentic/claude-opus-5" },
+      { id: "no-think/myprovider/claude-opus-5" },
+      { id: "no-think/customprovider/claude-opus-5" },
     ]);
     const names = payload.models.map((m) => m.name);
     assert.equal(new Set(names).size, 2, JSON.stringify(names));
-    assert.ok(names.some((n) => n.includes("Cosmoshub")), JSON.stringify(names));
-    assert.ok(names.some((n) => n.includes("Openagentic")), JSON.stringify(names));
+    assert.ok(names.some((n) => n.includes("Myprovider")), JSON.stringify(names));
+    assert.ok(names.some((n) => n.includes("Customprovider")), JSON.stringify(names));
   });
 
   it("keeps two providers' identical model names distinguishable", async () => {
     const payload = await publish([
-      { id: "openagentic/kimi-k3" },
-      { id: "cosmoshub/kimi-k3" },
+      { id: "customprovider/kimi-k3" },
+      { id: "myprovider/kimi-k3" },
     ]);
     assert.equal(new Set(payload.models.map((m) => m.name)).size, 2);
   });
 
   it("deduplicates case-insensitive duplicate model IDs from the gateway", async () => {
-    // Gateway sometimes serves both `openagentic/deepseek-v4-pro` and
-    // `openagentic/DeepSeek-V4-Pro`. Publishing both shows two nearly identical rows.
+    // Gateway sometimes serves both `customprovider/deepseek-v4-pro` and
+    // `customprovider/DeepSeek-V4-Pro`. Publishing both shows two nearly identical rows.
     const payload = await publish([
-      { id: "openagentic/deepseek-v4-pro" },
-      { id: "openagentic/DeepSeek-V4-Pro" },
+      { id: "customprovider/deepseek-v4-pro" },
+      { id: "customprovider/DeepSeek-V4-Pro" },
     ]);
     assert.equal(payload.models.length, 1);
-    assert.equal(payload.models[0]?.modelID, "openagentic/deepseek-v4-pro");
+    assert.equal(payload.models[0]?.modelID, "customprovider/deepseek-v4-pro");
   });
 
   it("cleans repository org prefixes from model display names", async () => {
@@ -175,18 +175,18 @@ describe("pricing and free badges", () => {
     // If an unpriced model is given `cost: [{ input: 0, output: 0 }]`, OpenCode displays "Free"
     // even for expensive models. Unpriced models must emit `cost: []` so OpenCode displays no Free badge.
     const payload = await publish([
-      { id: "openagentic/kimi-k3" }, // unpriced paid model -> cost: []
-      { id: "openagentic/deepseek-v4.1-flash-free" }, // explicitly free model -> cost: [{ input: 0, output: 0 }]
+      { id: "customprovider/kimi-k3" }, // unpriced paid model -> cost: []
+      { id: "customprovider/deepseek-v4.1-flash-free" }, // explicitly free model -> cost: [{ input: 0, output: 0 }]
       { id: "antigravity/gemini-3.1-pro", pricing: { input: 1.5, output: 5 } }, // priced model -> cost: [{ input: 1.5, ... }]
     ]) as unknown as {
       models: Array<{ modelID: string; cost: Array<{ input: number; output: number }> }>;
     };
 
-    const unpriced = payload.models.find((m) => m.modelID === "openagentic/kimi-k3");
+    const unpriced = payload.models.find((m) => m.modelID === "customprovider/kimi-k3");
     assert.ok(unpriced);
     assert.deepEqual(unpriced.cost, []);
 
-    const free = payload.models.find((m) => m.modelID === "openagentic/deepseek-v4.1-flash-free");
+    const free = payload.models.find((m) => m.modelID === "customprovider/deepseek-v4.1-flash-free");
     assert.ok(free);
     assert.equal(free.cost.length, 1);
     assert.equal(free.cost[0]?.input, 0);

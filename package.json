@@ -9,6 +9,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./server": {
+      "import": "./server.js"
     }
   },
   "files": [
@@ -25,7 +28,7 @@
     "build": "tsup && tsc --emitDeclarationOnly --declaration --outDir dist",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --import ./tests/setup.ts --test \"tests/**/*.test.ts\"",
-    "prepublishOnly": "bun run clean && bun run build && bun run test"
+    "prepublishOnly": "bun run clean && bun run build && bun run typecheck && bun run test"
   },
   "dependencies": {
     "zod": "^4.4.3"

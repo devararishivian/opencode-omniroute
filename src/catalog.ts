@@ -593,7 +593,7 @@ interface ProviderSources {
  * Resolve the provider vocabulary and the usableOnly filter in one pass.
  *
  * `/api/providers` is the only source of the operator's own connection names
- * (`nodeName`: `OpenAgentic`, `CosmosHub`), so the fetch runs whether or not
+ * (`nodeName`: `CustomProvider`, `MyProvider`), so the fetch runs whether or not
  * filtering is on — `usableOnly` decides whether the result narrows the
  * catalog, not whether titles get the right casing. One request per refresh
  * buys both.
@@ -847,8 +847,8 @@ async function publishCombos(
  * single `editor.add` in the payload builder.
  */
 /**
- * Wrapper namespace of a nested id: `no-think` for `no-think/openagentic/x`,
- * `undefined` for a plain `openagentic/x`. Only the segments before the
+ * Wrapper namespace of a nested id: `no-think` for `no-think/customprovider/x`,
+ * `undefined` for a plain `customprovider/x`. Only the segments before the
  * provider are a namespace; the provider itself is the label.
  */
 export function namespaceOf(id: string): string | undefined {
@@ -908,7 +908,7 @@ export async function collectCatalog(
   rawModels = rawModels.filter((entry) => isPublishableRawModelId(entry.id));
 
   // Case-insensitive deduplication: upstream gateways sometimes serve both
-  // `openagentic/deepseek-v4-pro` and `openagentic/DeepSeek-V4-Pro`.
+  // `customprovider/deepseek-v4-pro` and `customprovider/DeepSeek-V4-Pro`.
   const seenLowerIds = new Set<string>();
   rawModels = rawModels.filter((entry) => {
     const lower = entry.id.toLowerCase();

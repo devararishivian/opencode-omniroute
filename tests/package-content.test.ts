@@ -63,6 +63,7 @@ describe("package contents", () => {
       assert.doesNotMatch(text, /\/Users\/[a-z0-9._-]+\//i, `${path} contains a local absolute path`);
       assert.doesNotMatch(text, /\bsk-[A-Za-z0-9]{16,}\b/, `${path} looks like it contains an API key`);
       assert.doesNotMatch(text, /\bgh[pousr]_[A-Za-z0-9]{20,}\b/, `${path} looks like a token`);
+      assert.doesNotMatch(text, /CosmosHub|OpenAgentic/i, `${path} contains private provider names`);
     }
   });
 

@@ -343,7 +343,7 @@ export function mapRawModelToModelV2(
     name: normaliseFreeLabel(raw.id),
     capabilities: {
       temperature: caps.temperature ?? true,
-      reasoning: Boolean(caps.reasoning || caps.thinking),
+      reasoning: Boolean(caps.reasoning || caps.thinking || caps.supportsThinking),
       attachment: Boolean(caps.attachment ?? caps.vision ?? false),
       toolcall: Boolean(caps.tool_calling ?? false),
       input: {

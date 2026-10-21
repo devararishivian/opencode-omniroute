@@ -228,12 +228,12 @@ export function autoComboModelId(variant: AutoVariant | undefined): string {
 // ── Universal Display Name Builder ────────────────────────────────────────
 
 export interface ModelDisplayNameParams {
-  /** Raw model ID (e.g. "cc/" or "openagentic/deepseek-v4-flash"). */
+  /** Raw model ID (e.g. "cc/" or "customprovider/deepseek-v4-flash"). */
   rawId: string;
   /** Enrichment display name (e.g. "the model 4.6"). */
   enrichmentName?: string;
   /**
-   * Public provider prefix the model is served under (`openagentic`, `cc`).
+   * Public provider prefix the model is served under (`customprovider`, `cc`).
    * This is what the title carries: the TUI searches titles and provider
    * category, and the model id is not a search key, so the prefix has to be
    * in the title for the provider to stay findable.
@@ -245,7 +245,7 @@ export interface ModelDisplayNameParams {
   providerLabel?: string;
   /**
    * Leading wrapper segments of a nested id (`no-think` in
-   * `no-think/openagentic/x`). They route the request differently, so they are
+   * `no-think/customprovider/x`). They route the request differently, so they are
    * part of what makes two titles different, and they stay in the title.
    */
   namespace?: string;
@@ -280,8 +280,8 @@ export function formatProviderSuffix(label: string): string {
  * a model to be findable by its provider, and leading with it keeps that
  * guarantee while reading as a name:
  *
- *   `OpenAgentic - DeepSeek V4 Flash`
- *   `[Free] OpenAgentic - DeepSeek V4 Flash .. 25M tokens/day`
+ *   `CustomProvider - DeepSeek V4 Flash`
+ *   `[Free] CustomProvider - DeepSeek V4 Flash · 25M tokens/day`
  *   `Auto: Coding (4p)`                        <- auto combo
  *   `Combo: Daily driver`                      <- DB combo
  *
@@ -424,7 +424,7 @@ export function humanizeModelName(value: string): string {
 
 /**
  * Format a provider prefix or wrapper namespace for display when the connection
- * carried no custom operator `nodeName`: `cosmoshub` -> `Cosmoshub`, `no-think` -> `No-think`.
+ * carried no custom operator `nodeName`: `customprovider` -> `Customprovider`, `no-think` -> `No-think`.
  * A label that already carries mixed/upper case from the operator is left untouched.
  */
 export function displayLabel(label: string): string {

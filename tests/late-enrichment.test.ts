@@ -62,7 +62,7 @@ async function setupWithDelayedEnrichment(): Promise<{
           providers: {
             openai: {
               id: "openai",
-              displayPrefix: "openagentic",
+              displayPrefix: "customprovider",
               models: [{ id: "kimi-k3", name: "Kimi K3" }],
             },
           },
@@ -71,7 +71,7 @@ async function setupWithDelayedEnrichment(): Promise<{
       );
     }
     if (url.includes("/v1/models")) {
-      return new Response(JSON.stringify({ data: [{ id: "openagentic/kimi-k3" }] }), {
+      return new Response(JSON.stringify({ data: [{ id: "customprovider/kimi-k3" }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
@@ -103,11 +103,11 @@ describe("late enrichment reaches the picker", () => {
     const { published } = await setupWithDelayedEnrichment();
     const payload = published();
     assert.ok(payload, "a payload must be published after the optional tier lands");
-    const model = payload.models.find((m) => m.modelID === "openagentic/kimi-k3");
+    const model = payload.models.find((m) => m.modelID === "customprovider/kimi-k3");
     assert.ok(model, "the model must still be published");
     assert.equal(
       model.name,
-      "Openagentic - Kimi K3",
+      "Customprovider - Kimi K3",
       "the reload must publish the re-projected payload, not the empty-enrichment one"
     );
   });

@@ -13,7 +13,7 @@ export interface OmniRouteEnrichmentEntry {
     cacheWrite?: number;
   };
   /**
-   * Public prefix the model is served under (e.g. `openagentic`), i.e. what
+   * Public prefix the model is served under (e.g. `customprovider`), i.e. what
    * appears before the `/` in `/v1/models` ids. Populated by
    * `defaultOmniRouteEnrichmentFetcher` from the slot's `displayPrefix` when
    * present, else from the `/api/pricing/models` key. Drives enrichment
@@ -682,8 +682,8 @@ export interface EnrichmentDisplayContext {
  * The name is built rather than copied, because the gateway ships the parts
  * separately — the pricing catalog gives a display name and an upstream
  * provider label, the free-tier summary gives the budget. A picker showing
- * `DeepSeek V4 Flash (openagentic)` tells the user which connection serves the
- * model; `openagentic/deepseek-v4-flash` alone does not.
+ * `DeepSeek V4 Flash (customprovider)` tells the user which connection serves the
+ * model; `customprovider/deepseek-v4-flash` alone does not.
  */
 export function applyEnrichment(
   model: ModelV2,

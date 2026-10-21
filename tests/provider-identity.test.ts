@@ -29,7 +29,7 @@ const connections: OmniRouteProviderConnection[] = [
     provider: NODE_ID,
     isActive: true,
     testStatus: "active",
-    providerSpecificData: { prefix: "openagentic" },
+    providerSpecificData: { prefix: "customprovider" },
   },
 ];
 
@@ -39,7 +39,7 @@ const pricingBody = {
       id: NODE_ID,
       alias: NODE_ID,
       name: "Openai-compatible-chat-7f3c1e8a",
-      displayPrefix: "openagentic",
+      displayPrefix: "customprovider",
       models: [
         { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
         { id: "kimi-k3", name: "Kimi K3" },
@@ -85,10 +85,10 @@ describe("provider identity from a UUID-keyed pricing slot", () => {
     const restore = stubGateway();
     try {
       const enrichment = await defaultOmniRouteEnrichmentFetcher("https://gw.example.com", "k", 1000);
-      const entry = enrichment.get("openagentic/deepseek-v4-flash");
+      const entry = enrichment.get("customprovider/deepseek-v4-flash");
       assert.ok(entry, "the slot must be indexed under its public prefix");
-      assert.equal(entry.providerAlias, "openagentic");
-      assert.equal(entry.displayPrefix, "openagentic");
+      assert.equal(entry.providerAlias, "customprovider");
+      assert.equal(entry.displayPrefix, "customprovider");
       assert.equal(entry.providerCanonical, NODE_ID);
       assert.equal(entry.slotKey, NODE_ID);
       // The node-keyed price is joined through the slot key, so it lands on
@@ -108,19 +108,19 @@ describe("provider identity from a UUID-keyed pricing slot", () => {
     try {
       const enrichment = await defaultOmniRouteEnrichmentFetcher("https://gw.example.com", "k", 1000);
       const index = buildProviderIdentityIndex({ connections, enrichment });
-      const identity = resolveProviderForModel(index, "openagentic/deepseek-v4-flash");
+      const identity = resolveProviderForModel(index, "customprovider/deepseek-v4-flash");
       assert.ok(identity);
-      assert.equal(identity.prefix, "openagentic");
-      assert.equal(identity.label, "openagentic");
+      assert.equal(identity.prefix, "customprovider");
+      assert.equal(identity.label, "customprovider");
       assert.equal(identity.canonical, NODE_ID);
       assert.equal(identity.verified, true);
       assert.deepEqual(identity.state, { configured: true, active: true, health: "active" });
-      assert.equal(providerUsability(index, "openagentic"), "usable");
+      assert.equal(providerUsability(index, "customprovider"), "usable");
       // The canonical spelling resolves to the same identity.
-      assert.equal(providerLabelFor(index, NODE_ID), "openagentic");
+      assert.equal(providerLabelFor(index, NODE_ID), "customprovider");
       assert.deepEqual(
         [...providerAliasesFor(index, NODE_ID)].sort(),
-        ["openagentic", NODE_ID].sort()
+        ["customprovider", NODE_ID].sort()
       );
     } finally {
       restore();
@@ -137,7 +137,7 @@ describe("provider identity from a UUID-keyed pricing slot", () => {
       const identity = resolveProviderForModel(index, `${NODE_ID}/some-model`);
       assert.ok(identity);
       assert.equal(isGeneratedNodeId(identity.label), false);
-      assert.equal(identity.label, "openagentic");
+      assert.equal(identity.label, "customprovider");
     } finally {
       restore();
     }
@@ -154,7 +154,7 @@ describe("provider identity from a UUID-keyed pricing slot", () => {
         canonicalToAlias
       );
       assert.ok(hit);
-      assert.equal(hit.providerAlias, "openagentic");
+      assert.equal(hit.providerAlias, "customprovider");
     } finally {
       restore();
     }
@@ -166,9 +166,9 @@ describe("nested namespaces", () => {
     // `no-think` wraps a provider; the request routes to the segment after it.
     // The earlier rule (first segment = provider) labelled every wrapped model
     // `no-think`, which merged models served by different connections.
-    assert.equal(servedPrefixOf("no-think/openagentic/deepseek-v4-flash"), "openagentic");
-    assert.equal(servedPrefixOf("no-think/cosmoshub/claude-opus-5"), "cosmoshub");
-    assert.equal(servedPrefixOf("openagentic/deepseek-v4-flash"), "openagentic");
+    assert.equal(servedPrefixOf("no-think/customprovider/deepseek-v4-flash"), "customprovider");
+    assert.equal(servedPrefixOf("no-think/myprovider/claude-opus-5"), "myprovider");
+    assert.equal(servedPrefixOf("customprovider/deepseek-v4-flash"), "customprovider");
     assert.equal(servedPrefixOf("bare-model"), undefined);
   });
 
@@ -179,31 +179,31 @@ describe("nested namespaces", () => {
   });
 
   it("reports the wrapper separately so titles can keep it", () => {
-    assert.equal(wrapperOf("no-think/openagentic/x"), "no-think");
-    assert.equal(wrapperOf("openagentic/x"), undefined);
+    assert.equal(wrapperOf("no-think/customprovider/x"), "no-think");
+    assert.equal(wrapperOf("customprovider/x"), undefined);
   });
 
   it("resolves a wrapped id to the provider it routes to", () => {
     const index = buildProviderIdentityIndex({ connections });
-    const wrapped = resolveProviderForModel(index, "no-think/openagentic/deepseek-v4-flash");
+    const wrapped = resolveProviderForModel(index, "no-think/customprovider/deepseek-v4-flash");
     assert.ok(wrapped);
-    assert.equal(wrapped.prefix, "openagentic");
-    assert.equal(wrapped.label, "openagentic");
+    assert.equal(wrapped.prefix, "customprovider");
+    assert.equal(wrapped.label, "customprovider");
   });
 });
 
 describe("identity precedence", () => {
   it("prefers the served prefix over owned_by", () => {
     const index = buildProviderIdentityIndex({ connections });
-    const identity = resolveProviderForModel(index, "openagentic/x", "someone-else");
-    assert.equal(identity?.label, "openagentic");
+    const identity = resolveProviderForModel(index, "customprovider/x", "someone-else");
+    assert.equal(identity?.label, "customprovider");
     assert.equal(identity?.verified, true);
   });
 
   it("uses owned_by only for a bare id", () => {
     const index = buildProviderIdentityIndex({ connections });
-    const identity = resolveProviderForModel(index, "x", "openagentic");
-    assert.equal(identity?.label, "openagentic");
+    const identity = resolveProviderForModel(index, "x", "customprovider");
+    assert.equal(identity?.label, "customprovider");
   });
 
   it("keeps an unknown prefix unknown rather than borrowing a label", () => {
@@ -221,8 +221,8 @@ describe("identity precedence", () => {
 
   it("fills gaps without overwriting a resolved value", () => {
     assert.deepEqual(
-      mergeProviderMetadata({ label: "openagentic" }, { label: "other", canonical: "c" }),
-      { label: "openagentic", canonical: "c" }
+      mergeProviderMetadata({ label: "customprovider" }, { label: "other", canonical: "c" }),
+      { label: "customprovider", canonical: "c" }
     );
   });
 });
@@ -234,7 +234,7 @@ describe("usableOnly uses the same vocabulary", () => {
     // prefix would be unknown and (worse) could be dropped by a stricter
     // filter. It must be kept.
     const usable = usableProviderAliasSet(connections, undefined);
-    assert.equal(isUsableRawModelId("openagentic/never-priced", usable), true);
+    assert.equal(isUsableRawModelId("customprovider/never-priced", usable), true);
   });
 
   it("drops a model whose connection is explicitly disabled", () => {
@@ -243,13 +243,13 @@ describe("usableOnly uses the same vocabulary", () => {
         id: "conn-2",
         provider: NODE_ID,
         isActive: false,
-        providerSpecificData: { prefix: "openagentic" },
+        providerSpecificData: { prefix: "customprovider" },
       },
     ];
     const usable = usableProviderAliasSet(disabled, undefined);
-    assert.equal(isUsableRawModelId("openagentic/deepseek-v4-flash", usable), false);
+    assert.equal(isUsableRawModelId("customprovider/deepseek-v4-flash", usable), false);
     const index = buildProviderIdentityIndex({ connections: disabled });
-    assert.equal(providerUsability(index, "openagentic"), "unusable");
+    assert.equal(providerUsability(index, "customprovider"), "unusable");
   });
 
   it("drops a model whose health check failed", () => {
@@ -259,11 +259,11 @@ describe("usableOnly uses the same vocabulary", () => {
         provider: NODE_ID,
         isActive: true,
         testStatus: "error",
-        providerSpecificData: { prefix: "openagentic" },
+        providerSpecificData: { prefix: "customprovider" },
       },
     ];
     const index = buildProviderIdentityIndex({ connections: unhealthy });
-    assert.equal(providerUsability(index, "openagentic"), "unusable");
+    assert.equal(providerUsability(index, "customprovider"), "unusable");
   });
 
   it("treats a missing isActive as no opinion, not as disabled", () => {
@@ -278,8 +278,8 @@ describe("usableOnly uses the same vocabulary", () => {
     // No connections at all: the filter cannot be evaluated, so it must not
     // drop anything.
     const usable = usableProviderAliasSet([], undefined);
-    assert.equal(isUsableRawModelId("openagentic/deepseek-v4-flash", usable), true);
-    assert.equal(isUsableRawModelId("cosmoshub/whatever", usable), true);
+    assert.equal(isUsableRawModelId("customprovider/deepseek-v4-flash", usable), true);
+    assert.equal(isUsableRawModelId("myprovider/whatever", usable), true);
   });
 });
 
@@ -287,11 +287,11 @@ describe("display titles", () => {
   it("leads with the capitalised provider, then the model name", () => {
     assert.equal(
       buildModelDisplayName({
-        rawId: "openagentic/deepseek-v4-flash",
+        rawId: "customprovider/deepseek-v4-flash",
         enrichmentName: "DeepSeek V4 Flash",
-        providerLabel: "openagentic",
+        providerLabel: "customprovider",
       }),
-      "Openagentic - DeepSeek V4 Flash"
+      "Customprovider - DeepSeek V4 Flash"
     );
   });
 
@@ -300,10 +300,10 @@ describe("display titles", () => {
     // humaniser then turns the model segment into readable words.
     assert.equal(
       buildModelDisplayName({
-        rawId: "openagentic/deepseek-v4-flash",
-        providerLabel: "openagentic",
+        rawId: "customprovider/deepseek-v4-flash",
+        providerLabel: "customprovider",
       }),
-      "Openagentic - Deepseek v4 Flash"
+      "Customprovider - Deepseek v4 Flash"
     );
   });
 
@@ -311,24 +311,24 @@ describe("display titles", () => {
     assert.equal(
       buildModelDisplayName({
         rawId: "x",
-        enrichmentName: "Openagentic - DeepSeek V4 Flash",
-        providerLabel: "openagentic",
+        enrichmentName: "Customprovider - DeepSeek V4 Flash",
+        providerLabel: "customprovider",
       }),
-      "Openagentic - DeepSeek V4 Flash"
+      "Customprovider - DeepSeek V4 Flash"
     );
   });
 
   it("keeps the free marker and budget around the name", () => {
     assert.equal(
       buildModelDisplayName({
-        rawId: "openagentic/free-model",
+        rawId: "customprovider/free-model",
         enrichmentName: "Free Model",
-        providerLabel: "openagentic",
+        providerLabel: "customprovider",
         isFree: true,
         freeType: "recurring-daily",
         monthlyTokens: 25_000_000,
       }),
-      "[Free] Openagentic - Free Model · 25M tokens/day"
+      "[Free] Customprovider - Free Model · 25M tokens/day"
     );
   });
 
@@ -337,7 +337,7 @@ describe("display titles", () => {
       buildModelDisplayName({
         rawId: "combo-fast",
         enrichmentName: "Combo Fast",
-        providerLabel: "openagentic",
+        providerLabel: "customprovider",
         isCombo: true,
       }),
       "Combo Fast"
@@ -346,7 +346,7 @@ describe("display titles", () => {
 
   it("makes every custom-provider model findable by its prefix", () => {
     // The TUI fuzzy-matches titles; the model id is not a search key.
-    const names = ["openagentic/a", "openagentic/b", "no-think/openagentic/c"].map((rawId) =>
+    const names = ["customprovider/a", "customprovider/b", "no-think/customprovider/c"].map((rawId) =>
       buildModelDisplayName({
         rawId,
         enrichmentName: `Model ${rawId}`,
@@ -354,7 +354,7 @@ describe("display titles", () => {
         namespace: wrapperOf(rawId),
       })
     );
-    assert.equal(names.filter((name) => name.includes("Openagentic")).length, 3);
-    assert.equal(names.filter((name) => name.startsWith("No-think - Openagentic - ")).length, 1);
+    assert.equal(names.filter((name) => name.includes("Customprovider")).length, 3);
+    assert.equal(names.filter((name) => name.startsWith("No-think - Customprovider - ")).length, 1);
   });
 });

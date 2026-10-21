@@ -142,7 +142,6 @@ export async function registerWebFetch(
         });
 
         const seconds = Math.min(Math.max(input.timeout ?? options.timeoutMs / 1000, 1), 120);
-        const timeoutMs = Math.round(seconds * 1000);
 
         try {
           const response = await client.fetch(

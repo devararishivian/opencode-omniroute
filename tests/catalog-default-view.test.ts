@@ -20,9 +20,9 @@ describe("the plugin publishes the whole catalog by default", () => {
 
   it("keeps an explicit list as the operator wrote it", () => {
     const resolved = toResolvedOptions(
-      parsePluginOptions({ baseURL: "https://gw.example.com", visibleModels: ["openagentic/*"] })
+      parsePluginOptions({ baseURL: "https://gw.example.com", visibleModels: ["customprovider/*"] })
     );
-    assert.deepEqual(resolved.visibleModels, ["openagentic/*"]);
+    assert.deepEqual(resolved.visibleModels, ["customprovider/*"]);
   });
 
   it("does not cap models per provider when the default view is used", async () => {
@@ -30,8 +30,8 @@ describe("the plugin publishes the whole catalog by default", () => {
     // default that cap must not apply, or a model the user already selected
     // disappears from the picker and reads as "unavailable".
     const raw = Array.from({ length: 25 }, (_, i) => ({
-      id: `openagentic/model-${String(i)}`,
-      owned_by: "openagentic",
+      id: `customprovider/model-${String(i)}`,
+      owned_by: "customprovider",
       context_length: 1000,
     }));
     const collected = await collectCatalog(
@@ -43,8 +43,8 @@ describe("the plugin publishes the whole catalog by default", () => {
 
   it("still narrows when the operator asks for the showcase view", async () => {
     const raw = Array.from({ length: 25 }, (_, i) => ({
-      id: `openagentic/model-${String(i)}`,
-      owned_by: "openagentic",
+      id: `customprovider/model-${String(i)}`,
+      owned_by: "customprovider",
       context_length: 1000,
     }));
     const collected = await collectCatalog(baseOpts, {
@@ -65,7 +65,7 @@ describe("prefix-only rows are not models", () => {
   });
 
   it("accepts a normal id, including a nested one", () => {
-    assert.equal(isPublishableRawModelId("openagentic/kimi-k3"), true);
+    assert.equal(isPublishableRawModelId("customprovider/kimi-k3"), true);
     assert.equal(isPublishableRawModelId("nvidia/black-forest-labs/flux.1-dev"), true);
     assert.equal(isPublishableRawModelId("bare-model"), true);
   });
