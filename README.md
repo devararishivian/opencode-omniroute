@@ -1,5 +1,11 @@
 # oc-omniroute-plugin
 
+[![npm version](https://img.shields.io/npm/v/@devvara/oc-omniroute-plugin.svg?color=cb3837)](https://www.npmjs.com/package/@devvara/oc-omniroute-plugin)
+[![npm downloads](https://img.shields.io/npm/dm/@devvara/oc-omniroute-plugin.svg)](https://www.npmjs.com/package/@devvara/oc-omniroute-plugin)
+[![CI Status](https://github.com/devararishivian/opencode-omniroute/actions/workflows/ci.yml/badge.svg)](https://github.com/devararishivian/opencode-omniroute/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![OpenCode](https://img.shields.io/badge/OpenCode-v2-black.svg)](https://opencode.ai)
+
 A fast, clean OpenCode V2 plugin for [OmniRoute](https://github.com/diegosouzapw/OmniRoute).
 
 It connects OpenCode directly to your OmniRoute gateway, keeps your model picker clean and organized, and optionally
@@ -319,8 +325,8 @@ If this plugin makes your OpenCode workflow smoother:
 
 - **Star the repository:** Give us a ⭐ on GitHub! It helps other developers find this project.
 - **Sponsor / Donate:** If this tool brings value to you or your company, consider sponsoring or supporting ongoing
-  maintenance via [GitHub Sponsors](https://github.com/sponsors/devararishivian) or donation links on the profile. Your support
-  keeps the project active and independent!
+  maintenance via [GitHub Sponsors](https://github.com/sponsors/devararishivian) or donation links on the profile. Your
+  support keeps the project active and independent!
 
 ---
 
