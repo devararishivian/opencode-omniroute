@@ -503,7 +503,7 @@ describe("usage memory option", () => {
       // The marker carries the SERVED prefix (`dg`), not the enrichment
       // slot's own alias (`deepgram`): the title must name the provider the
       // request actually routes to. The friendly name still leads.
-      assert.match(JSON.stringify(restored), /Nova 3 \(Transcription\) \(dg\)/);
+      assert.match(JSON.stringify(restored), /Dg - Nova 3 \(Transcription\)/);
     });
   });
 });

@@ -243,6 +243,12 @@ export interface ModelDisplayNameParams {
   providerDisplayName?: string;
   /** Explicit label; wins over both alias and display name. */
   providerLabel?: string;
+  /**
+   * Leading wrapper segments of a nested id (`no-think` in
+   * `no-think/openagentic/x`). They route the request differently, so they are
+   * part of what makes two titles different, and they stay in the title.
+   */
+  namespace?: string;
   /** Whether model is free tier. */
   isFree?: boolean;
   /** Free model budget info. */
@@ -269,18 +275,19 @@ export function formatProviderSuffix(label: string): string {
 /**
  * Build the final display name.
  *
- * Name-first policy: the friendly model name leads and the provider prefix
- * follows in parentheses, so the picker stays readable while every model stays
- * findable by its provider:
+ * Provider-first policy: the served prefix leads, capitalised, followed by the
+ * model name. The picker searches titles, so the provider has to be visible for
+ * a model to be findable by its provider, and leading with it keeps that
+ * guarantee while reading as a name:
  *
- *   `DeepSeek V4 Flash (openagentic)`
- *   `[Free] DeepSeek V4 Flash (openagentic) .. 25M tokens/day`
+ *   `OpenAgentic - DeepSeek V4 Flash`
+ *   `[Free] OpenAgentic - DeepSeek V4 Flash .. 25M tokens/day`
  *   `Auto: Coding (4p)`                        <- auto combo
  *   `Combo: Daily driver`                      <- DB combo
  *
- * The label is the served prefix, never a generated node id or a UUID. When no
- * friendly name exists the raw id already starts with that prefix, so the
- * suffix is skipped instead of repeating it.
+ * The label is the served prefix, never a generated node id or a UUID. A base
+ * name that is only the id repeats the prefix, so it is stripped before the
+ * label is added.
  */
 export function buildModelDisplayName(params: ModelDisplayNameParams): string {
   // Auto combos
@@ -288,16 +295,35 @@ export function buildModelDisplayName(params: ModelDisplayNameParams): string {
     return formatAutoComboName(params.autoVariant, params.autoCandidateCount);
   }
 
-  // Determine base name - strip any existing free suffix first
-  const rawBase =
-    params.enrichmentName && params.enrichmentName.trim().length > 0
-      ? params.enrichmentName
-      : params.rawId;
-  const cleanedBase = rawBase
-    .replace(/\s*\(free\)\s*$/i, "")
-    .replace(/[\s-]+free\s*$/i, "")
-    .trim();
-  const wasFree = cleanedBase.length < rawBase.trim().length;
+  // Determine base name - strip any existing free suffix first. When the
+  // gateway has no display name, the id is the name; humanising it keeps the
+  // picker readable without inventing data.
+  // An enrichment name that is just the id again (`deepseek-v4.1-flash`) is
+  // not a name, so it goes through the same humaniser as a missing one.
+  // The free suffix is removed BEFORE the id is compared, because a bare
+  // `...-free` id would otherwise never match the name the catalog carries
+  // for its paid twin and would stay un-humanised.
+  const stripFree = (value: string): string =>
+    value
+      .replace(/\s*\(free\)\s*$/i, "")
+      .replace(/[\s-]+free\s*$/i, "")
+      .trim();
+  const supplied = params.enrichmentName?.trim();
+  const rawSegment = params.rawId.slice(params.rawId.lastIndexOf("/") + 1);
+  const idSegment = stripFree(rawSegment);
+  const nameIsId =
+    supplied === undefined ||
+    supplied.length === 0 ||
+    supplied === params.rawId ||
+    stripFree(supplied).toLowerCase() === idSegment.toLowerCase();
+  const named = nameIsId ? humanizeModelName(idSegment) : supplied;
+  // Free-ness is a property of the id and of the gateway's own label, so it is
+  // read before either is stripped: `deepseek-v4.1-flash-free` must stay
+  // marked free even though its title is the paid model's name.
+  const wasFree =
+    stripFree(rawSegment).length < rawSegment.trim().length ||
+    (supplied !== undefined && stripFree(supplied).length < supplied.length);
+  const cleanedBase = stripFree(named);
   const isFree = !!params.isFree || wasFree;
 
   let baseName = cleanedBase;
@@ -307,18 +333,28 @@ export function buildModelDisplayName(params: ModelDisplayNameParams): string {
     const explicit = params.providerLabel?.trim();
     const alias = params.providerAlias?.trim();
     const display = params.providerDisplayName?.trim();
-    const label =
+    const raw =
       explicit !== undefined && explicit.length > 0
         ? explicit
         : alias !== undefined && alias.length > 0
           ? alias
           : display;
-    if (label !== undefined && label.length > 0 && !hasProviderMarker(baseName, label)) {
-      const isRawBase =
-        params.enrichmentName === undefined || params.enrichmentName.trim().length === 0;
-      const rawHasPrefix =
-        isRawBase && baseName.toLowerCase().startsWith(`${label.toLowerCase()}/`);
-      if (!rawHasPrefix) baseName = `${baseName}${formatProviderSuffix(label)}`;
+    if (raw !== undefined && raw.length > 0) {
+      const provider = displayLabel(raw);
+      const namespace = params.namespace?.trim();
+      const label =
+        namespace !== undefined && namespace.length > 0
+          ? `${displayLabel(namespace)} - ${provider}`
+          : provider;
+      // The model segment alone is not a name: `deepseek-v4-pro` repeats the id
+      // the picker already shows under the title. Prefer the segment stripped of
+      // the provider prefix, so the title reads as a name rather than an id.
+      const bare = stripProviderPrefix(baseName, raw);
+      if (!hasProviderMarker(bare, label)) {
+        baseName = `${label}${PROVIDER_TAG_SEPARATOR}${bare}`;
+      } else {
+        baseName = bare;
+      }
     }
   }
 
@@ -342,11 +378,66 @@ export function buildModelDisplayName(params: ModelDisplayNameParams): string {
   return baseName;
 }
 
+/**
+ * Words whose casing a title must not invent. Kept deliberately small: these
+ * are the tokens that read as wrong when capitalised (`Gpt`, `Glm`).
+ */
+const KEPT_CASE: ReadonlySet<string> = new Set([
+  "gpt",
+  "glm",
+  "oss",
+  "asr",
+  "tts",
+  "vl",
+  "vlm",
+  "pdf",
+  "api",
+  "url",
+]);
+
+/**
+ * Turn an id-shaped name into a readable one: `deepseek-v4.1-flash` becomes
+ * `DeepSeek V4.1 Flash`. Only used when the gateway supplied no display name
+ * and the name is the id itself, so it never overrides real data. Tokens that
+ * carry digits or dots are left alone (`v4.1`), and known acronyms keep their
+ * casing.
+ */
+export function humanizeModelName(value: string): string {
+  if (value.length === 0 || value.includes(" ")) return value;
+  const tokens = value.split(/[-_]+/).filter((token) => token.length > 0);
+  if (tokens.length === 0) return value;
+  return tokens
+    .map((token) => {
+      const lower = token.toLowerCase();
+      if (KEPT_CASE.has(lower)) return lower.toUpperCase();
+      if (/[0-9.]/.test(token)) return token;
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    })
+    .join(" ");
+}
+
+/**
+ * Capitalise a provider prefix for display when the connection carried no
+ * `nodeName`: `cosmoshub` -> `Cosmoshub`. A label that already carries capitals
+ * is left alone, because it came from the operator.
+ */
+export function displayLabel(label: string): string {
+  if (label.length === 0) return label;
+  if (label !== label.toLowerCase()) return label;
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** Strip a leading `<prefix>/` from a name that is really an id. */
+function stripProviderPrefix(name: string, prefix: string): string {
+  const needle = `${prefix.toLowerCase()}/`;
+  return name.toLowerCase().startsWith(needle) ? name.slice(needle.length) : name;
+}
+
 /** Whether `name` already carries this provider marker in any spelling. */
 function hasProviderMarker(name: string, label: string): boolean {
   const lowered = name.toLowerCase();
   const needle = label.toLowerCase();
   if (lowered.includes(`(${needle})`)) return true;
-  // Legacy `Provider - Name` titles must not gain a second marker.
-  return lowered.startsWith(`${needle} - `);
+  // A title that already leads with the provider must not gain a second one.
+  return lowered.startsWith(`${needle}${PROVIDER_TAG_SEPARATOR.toLowerCase()}`);
 }

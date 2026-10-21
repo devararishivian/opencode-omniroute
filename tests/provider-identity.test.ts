@@ -9,6 +9,7 @@ import {
   providerUsability,
   resolveProviderForModel,
   servedPrefixOf,
+  wrapperOf,
 } from "../src/provider-identity.js";
 import { defaultOmniRouteEnrichmentFetcher, lookupEnrichment, buildCanonicalToAliasMap } from "../src/shared/enrich.js";
 import { usableProviderAliasSet, isUsableRawModelId } from "../src/shared/usable.js";
@@ -161,21 +162,33 @@ describe("provider identity from a UUID-keyed pricing slot", () => {
 });
 
 describe("nested namespaces", () => {
-  it("keeps the first segment as the provider", () => {
-    assert.equal(servedPrefixOf("no-think/openagentic/deepseek-v4-flash"), "no-think");
+  it("takes the provider from behind a known wrapper namespace", () => {
+    // `no-think` wraps a provider; the request routes to the segment after it.
+    // The earlier rule (first segment = provider) labelled every wrapped model
+    // `no-think`, which merged models served by different connections.
+    assert.equal(servedPrefixOf("no-think/openagentic/deepseek-v4-flash"), "openagentic");
+    assert.equal(servedPrefixOf("no-think/cosmoshub/claude-opus-5"), "cosmoshub");
     assert.equal(servedPrefixOf("openagentic/deepseek-v4-flash"), "openagentic");
     assert.equal(servedPrefixOf("bare-model"), undefined);
   });
 
-  it("does not merge a nested id into its inner provider", () => {
+  it("keeps an unknown first segment as the provider, never relabels it", () => {
+    // A genuinely new provider must not be mistaken for a wrapper.
+    assert.equal(servedPrefixOf("brandnew/x/y"), "brandnew");
+    assert.equal(wrapperOf("brandnew/x/y"), undefined);
+  });
+
+  it("reports the wrapper separately so titles can keep it", () => {
+    assert.equal(wrapperOf("no-think/openagentic/x"), "no-think");
+    assert.equal(wrapperOf("openagentic/x"), undefined);
+  });
+
+  it("resolves a wrapped id to the provider it routes to", () => {
     const index = buildProviderIdentityIndex({ connections });
-    const nested = resolveProviderForModel(index, "no-think/openagentic/deepseek-v4-flash");
-    assert.ok(nested);
-    assert.equal(nested.prefix, "no-think");
-    assert.equal(nested.label, "no-think");
-    assert.equal(nested.verified, false);
-    // Unknown, so it stays published.
-    assert.equal(providerUsability(index, "no-think"), "unknown");
+    const wrapped = resolveProviderForModel(index, "no-think/openagentic/deepseek-v4-flash");
+    assert.ok(wrapped);
+    assert.equal(wrapped.prefix, "openagentic");
+    assert.equal(wrapped.label, "openagentic");
   });
 });
 
@@ -271,35 +284,37 @@ describe("usableOnly uses the same vocabulary", () => {
 });
 
 describe("display titles", () => {
-  it("puts the friendly name first and the served prefix last", () => {
+  it("leads with the capitalised provider, then the model name", () => {
     assert.equal(
       buildModelDisplayName({
         rawId: "openagentic/deepseek-v4-flash",
         enrichmentName: "DeepSeek V4 Flash",
         providerLabel: "openagentic",
       }),
-      "DeepSeek V4 Flash (openagentic)"
+      "Openagentic - DeepSeek V4 Flash"
     );
   });
 
-  it("does not repeat the prefix when the raw id is the name", () => {
+  it("strips the prefix and humanises a base name that is only the id", () => {
+    // Without this the title repeats the id the picker already shows; the
+    // humaniser then turns the model segment into readable words.
     assert.equal(
       buildModelDisplayName({
         rawId: "openagentic/deepseek-v4-flash",
         providerLabel: "openagentic",
       }),
-      "openagentic/deepseek-v4-flash"
+      "Openagentic - Deepseek v4 Flash"
     );
   });
 
-  it("does not add a second marker to an already-tagged name", () => {
+  it("does not add a second provider to an already-tagged name", () => {
     assert.equal(
       buildModelDisplayName({
         rawId: "x",
-        enrichmentName: "DeepSeek V4 Flash (openagentic)",
+        enrichmentName: "Openagentic - DeepSeek V4 Flash",
         providerLabel: "openagentic",
       }),
-      "DeepSeek V4 Flash (openagentic)"
+      "Openagentic - DeepSeek V4 Flash"
     );
   });
 
@@ -313,7 +328,7 @@ describe("display titles", () => {
         freeType: "recurring-daily",
         monthlyTokens: 25_000_000,
       }),
-      "[Free] Free Model (openagentic) · 25M tokens/day"
+      "[Free] Openagentic - Free Model · 25M tokens/day"
     );
   });
 
@@ -336,9 +351,10 @@ describe("display titles", () => {
         rawId,
         enrichmentName: `Model ${rawId}`,
         providerLabel: servedPrefixOf(rawId),
+        namespace: wrapperOf(rawId),
       })
     );
-    assert.equal(names.filter((name) => name.includes("(openagentic)")).length, 2);
-    assert.equal(names.filter((name) => name.includes("(no-think)")).length, 1);
+    assert.equal(names.filter((name) => name.includes("Openagentic")).length, 3);
+    assert.equal(names.filter((name) => name.startsWith("No-think - Openagentic - ")).length, 1);
   });
 });

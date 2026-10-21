@@ -18,7 +18,7 @@ describe("the enrichment overlay reaches the picker", () => {
       providerDisplayName: "Claude",
       providerAlias: "cc",
     });
-    assert.equal(m.name, "the model 4.6 (cc)");
+    assert.equal(m.name, "Cc - the model 4.6");
   });
 
   it("marks a free model and states the budget the user actually gets", () => {
@@ -36,7 +36,7 @@ describe("the enrichment overlay reaches the picker", () => {
       /tokens\/month/,
       "the budget the gateway reports is stated, not just the fact it is free"
     );
-    assert.equal(m.name, "[Free] Grok 4 Fast (pol) · 1M tokens/month");
+    assert.equal(m.name, "[Free] Pol - Grok 4 Fast · 1M tokens/month");
   });
 
   it("drops the tag when the caller turns it off", () => {
@@ -56,7 +56,7 @@ describe("the enrichment overlay reaches the picker", () => {
       { name: "DeepSeek V4 Flash", providerAlias: "openai-compatible-chat-abc" },
       { providerLabel: "openagentic" }
     );
-    assert.equal(m.name, "DeepSeek V4 Flash (openagentic)");
+    assert.equal(m.name, "Openagentic - DeepSeek V4 Flash");
   });
 
   it("never tags a combo: it routes across providers, not to one", () => {
@@ -84,7 +84,7 @@ describe("free budget under alias and without cap", () => {
       freeType: "recurring-monthly" as const,
       monthlyTokens: 1_000_000,
     });
-    assert.equal(m.name, "[Free] Llama 3.3 70B (cf) · 1M tokens/month");
+    assert.equal(m.name, "[Free] Cf - Llama 3.3 70B · 1M tokens/month");
   });
 
   it("renders the uncapped label with no counters", () => {

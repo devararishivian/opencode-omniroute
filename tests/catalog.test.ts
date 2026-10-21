@@ -326,7 +326,7 @@ describe("catalog combo vs combo", () => {
     );
     const m = draft.models.get("omniroute/dupe");
     assert.ok(m, "raw model remains at its own key");
-    assert.equal(m?.name, "dupe");
+    assert.equal(m?.name, "Dupe");
     const combo1 = draft.models.get("omniroute/Dupe Combo");
     assert.ok(combo1, "first combo published under its name");
     const combo2 = draft.models.get("omniroute/Dupe Combo Again");

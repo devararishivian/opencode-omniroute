@@ -671,6 +671,8 @@ export interface EnrichmentDisplayContext {
    * keyed by slot and can name a provider the id does not route to.
    */
   providerLabel?: string;
+  /** Leading wrapper segments of a nested id, e.g. `no-think`. */
+  namespace?: string;
 }
 
 /**
@@ -688,36 +690,42 @@ export function applyEnrichment(
   enrichment: OmniRouteEnrichmentEntry | undefined,
   context: EnrichmentDisplayContext = {}
 ): ModelV2 {
-  if (!enrichment) return model;
+  // A model with no enrichment row still gets the marker and a readable name,
+  // so an empty entry is the normal case, not the exception.
+  const entry = enrichment ?? {};
   const tagged = context.providerTag !== false;
   const built = buildModelDisplayName({
-    rawId: model.name && model.name.length > 0 ? model.name : model.id,
-    enrichmentName: enrichment.name,
-    providerAlias: tagged ? enrichment.providerAlias : undefined,
-    providerDisplayName: tagged ? enrichment.providerDisplayName : undefined,
+    namespace: context.namespace,
+    // The model ID, not `model.name`: the mapper already rewrote the name into
+    // `[Free] owner/model` form, so using it here hid the free suffix from the
+    // name builder and dropped the marker on exactly the models that need it.
+    rawId: model.id,
+    enrichmentName: entry.name,
+    providerAlias: tagged ? entry.providerAlias : undefined,
+    providerDisplayName: tagged ? entry.providerDisplayName : undefined,
     providerLabel: tagged ? context.providerLabel : undefined,
-    isFree: enrichment.freeType !== undefined,
-    freeType: enrichment.freeType,
-    monthlyTokens: enrichment.monthlyTokens,
-    creditTokens: enrichment.creditTokens,
+    isFree: entry.freeType !== undefined,
+    freeType: entry.freeType,
+    monthlyTokens: entry.monthlyTokens,
+    creditTokens: entry.creditTokens,
     isCombo: context.isCombo,
     isAutoCombo: context.isAutoCombo,
   });
   if (built.trim().length > 0) {
     model.name = built;
   }
-  if (enrichment.pricing) {
-    if (typeof enrichment.pricing.input === "number") {
-      model.cost.input = enrichment.pricing.input;
+  if (entry.pricing) {
+    if (typeof entry.pricing.input === "number") {
+      model.cost.input = entry.pricing.input;
     }
-    if (typeof enrichment.pricing.output === "number") {
-      model.cost.output = enrichment.pricing.output;
+    if (typeof entry.pricing.output === "number") {
+      model.cost.output = entry.pricing.output;
     }
-    if (typeof enrichment.pricing.cacheRead === "number") {
-      model.cost.cache.read = enrichment.pricing.cacheRead;
+    if (typeof entry.pricing.cacheRead === "number") {
+      model.cost.cache.read = entry.pricing.cacheRead;
     }
-    if (typeof enrichment.pricing.cacheWrite === "number") {
-      model.cost.cache.write = enrichment.pricing.cacheWrite;
+    if (typeof entry.pricing.cacheWrite === "number") {
+      model.cost.cache.write = entry.pricing.cacheWrite;
     }
   }
   return model;

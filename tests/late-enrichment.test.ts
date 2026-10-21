@@ -107,7 +107,7 @@ describe("late enrichment reaches the picker", () => {
     assert.ok(model, "the model must still be published");
     assert.equal(
       model.name,
-      "Kimi K3 (openagentic)",
+      "Openagentic - Kimi K3",
       "the reload must publish the re-projected payload, not the empty-enrichment one"
     );
   });

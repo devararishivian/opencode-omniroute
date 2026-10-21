@@ -73,11 +73,27 @@ export interface ProviderIdentityInput {
 
 /** A connection's public prefix, when it carries one. */
 function connectionPrefix(connection: OmniRouteProviderConnection): string | undefined {
+  return providerSpecificString(connection, "prefix");
+}
+
+/**
+ * The operator's own name for the connection, e.g. `OpenAgentic` for prefix
+ * `openagentic`. This is the only source of the brand's real casing, so a
+ * title built from it does not have to guess.
+ */
+function connectionLabel(connection: OmniRouteProviderConnection): string | undefined {
+  return providerSpecificString(connection, "nodeName");
+}
+
+function providerSpecificString(
+  connection: OmniRouteProviderConnection,
+  key: string
+): string | undefined {
   const data = connection.providerSpecificData;
   if (data === undefined || data === null || typeof data !== "object") return undefined;
-  const prefix = (data as { prefix?: unknown }).prefix;
-  if (typeof prefix !== "string") return undefined;
-  const trimmed = prefix.trim();
+  const value = (data as Record<string, unknown>)[key];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
@@ -118,8 +134,12 @@ function labelFor(
   prefix: string,
   canonical: string | undefined,
   configuredPrefix: string | undefined,
-  displayPrefix: string | undefined
+  displayPrefix: string | undefined,
+  configuredLabel: string | undefined
 ): string {
+  // The operator's name wins: it carries the brand's casing (`OpenAgentic`),
+  // which a prefix never does.
+  if (configuredLabel !== undefined && configuredLabel.length > 0) return configuredLabel;
   if (!isGeneratedNodeId(prefix)) return prefix;
   for (const candidate of [configuredPrefix, displayPrefix, canonical]) {
     if (candidate !== undefined && candidate.length > 0 && !isGeneratedNodeId(candidate)) {
@@ -138,6 +158,7 @@ interface MutableIdentity {
   states: ProviderConnectionState[];
   configuredPrefix?: string;
   displayPrefix?: string;
+  configuredLabel?: string;
 }
 
 /**
@@ -175,6 +196,9 @@ export function buildProviderIdentityIndex(
     if (seed?.displayPrefix !== undefined && identity.displayPrefix === undefined) {
       identity.displayPrefix = seed.displayPrefix;
     }
+    if (seed?.configuredLabel !== undefined && identity.configuredLabel === undefined) {
+      identity.configuredLabel = seed.configuredLabel;
+    }
     if (seed?.verified === true) identity.verified = true;
     for (const alias of seed?.aliases ?? []) {
       const lowered = alias.toLowerCase();
@@ -195,11 +219,13 @@ export function buildProviderIdentityIndex(
         ? connection.provider
         : undefined;
     const configuredPrefix = connectionPrefix(connection);
+    const configuredLabel = connectionLabel(connection);
     const prefix = configuredPrefix ?? canonical;
     if (prefix === undefined) continue;
     const identity = upsert(prefix, {
       canonical,
       configuredPrefix,
+      configuredLabel,
       verified: true,
       aliases: canonical !== undefined ? new Set([canonical]) : undefined,
     });
@@ -242,7 +268,8 @@ export function buildProviderIdentityIndex(
         identity.prefix,
         identity.canonical,
         identity.configuredPrefix,
-        identity.displayPrefix
+        identity.displayPrefix,
+        identity.configuredLabel
       ),
       aliases: identity.aliases,
       verified: identity.verified,
@@ -262,10 +289,30 @@ export function buildProviderIdentityIndex(
 /** Prefix of a raw model id, verbatim. `undefined` for a bare id. */
 export function servedPrefixOf(modelId: string): string | undefined {
   if (typeof modelId !== "string") return undefined;
-  const slash = modelId.indexOf("/");
-  if (slash <= 0) return undefined;
-  const prefix = modelId.slice(0, slash);
-  return prefix.length > 0 ? prefix : undefined;
+  const parts = modelId.split("/");
+  // `no-think/openagentic/x`: `no-think` is a wrapper namespace, and the
+  // provider the request actually routes to is the segment after it. Only a
+  // known wrapper is stripped; an unknown first segment stays the provider, so
+  // a genuinely new provider is never silently relabelled.
+  if (parts.length >= 3 && NAMESPACE_WRAPPERS.has(parts[0]!.toLowerCase())) {
+    return parts[1] || undefined;
+  }
+  const prefix = parts[0];
+  return prefix !== undefined && prefix.length > 0 && parts.length > 1 ? prefix : undefined;
+}
+
+/**
+ * Gateway wrappers that route to another provider rather than being one. Kept
+ * to the ones OmniRoute documents: `no-think` strips reasoning from whatever
+ * provider it wraps.
+ */
+const NAMESPACE_WRAPPERS: ReadonlySet<string> = new Set(["no-think"]);
+
+/** The wrapper namespace of an id, when it has one (`no-think` for `no-think/a/b`). */
+export function wrapperOf(modelId: string): string | undefined {
+  const parts = modelId.split("/");
+  if (parts.length >= 3 && NAMESPACE_WRAPPERS.has(parts[0]!.toLowerCase())) return parts[0];
+  return undefined;
 }
 
 /**

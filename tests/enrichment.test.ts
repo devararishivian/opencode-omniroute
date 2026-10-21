@@ -74,7 +74,7 @@ describe("catalog enrichment source", () => {
     assert.ok(m);
     // Name-first, with the served prefix as the marker so the picker stays
     // searchable by provider.
-    assert.equal(m?.name, "Model One (cc)");
+    assert.equal(m?.name, "Cc - Model One");
     assert.equal(m?.cost[0].input, 3);
     assert.equal(m?.cost[0].output, 15);
   });

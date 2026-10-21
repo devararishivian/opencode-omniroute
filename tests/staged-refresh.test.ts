@@ -161,7 +161,7 @@ describe("plugin-v2 staged refresh: optional sources never gate the publish", ()
         // gateway ships alongside the display name reaches the picker.
         assert.equal(
           late?.["name"],
-          "Model One (omni)",
+          "Omni - Model One",
           "the late enrichment must reach the catalog, provider tag included"
         );
       });
@@ -240,7 +240,7 @@ describe("plugin-v2 staged refresh: optional sources never gate the publish", ()
         const m1 = [...publishedOf(added).values()].find((m) => m["id"] === "m1");
         assert.equal(
           m1?.["name"],
-          "Model One (omni)",
+          "Omni - Model One",
           "the second refresh must keep the name the first one resolved"
         );
       });
@@ -338,7 +338,7 @@ describe("plugin-v2 staged refresh: optional sources never gate the publish", ()
         const m1 = [...publishedOf(added).values()].find((m) => m["id"] === "m1");
         assert.equal(
           m1?.["name"],
-          "Model One (omni)",
+          "Omni - Model One",
           `a persistently failing overlay must not wipe names, got ${JSON.stringify(m1?.["name"])}`
         );
         assert.ok(
