@@ -18,6 +18,6 @@ affiliated with OmniRoute or OpenCode. It is maintained independently.
 Changes from upstream include, among others:
   - normalized custom-provider identity (displayPrefix, provider-specific
     prefixes, canonical node ids) shared by enrichment, filtering and naming;
-  - name-first model titles with a provider marker;
+  - provider-first model titles with humanized names and clean repo prefixes;
   - a single-credential configuration;
   - opt-in OmniRoute-backed web search and webfetch over REST, without MCP.

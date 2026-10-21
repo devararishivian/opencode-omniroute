@@ -197,8 +197,21 @@ Key options:
 
 ---
 
-## License & Notice
+## Acknowledgments & Credits
 
-MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
+This project was built upon and inspired by the work of the open-source community:
 
-*Note: This is an independent open-source project and is not officially affiliated with OmniRoute or OpenCode.*
+- **[OmniRoute](https://github.com/diegosouzapw/OmniRoute)** by [Diego Souza](https://github.com/diegosouzapw) & contributors:  
+  This plugin is an independent derivative of the original `@omniroute/opencode-plugin-v2`. We are grateful for OmniRoute's powerful AI gateway and their initial OpenCode integration.
+- **[pi-omniroute-sync](https://github.com/JasonLandbridge/pi-omniroute-sync)** by [JasonLandbridge](https://github.com/JasonLandbridge):  
+  Special thanks for inspiring key ideas around chat-only model filtering, dual-level effort tier discovery, and clean provider-first naming conventions.
+- **[OpenCode](https://github.com/anomalyco/opencode)**:  
+  For building an incredible, hackable coding agent harness and extensible plugin architecture.
+
+---
+
+## License & Disclaimer
+
+MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for full license terms and historical attribution.
+
+**Disclaimer:** This is an independent, non-official community plugin. It is not endorsed by, sponsored by, or affiliated with OmniRoute or OpenCode. All product and company names are trademarks™ or registered® trademarks of their respective holders.
