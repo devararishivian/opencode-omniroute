@@ -1,6 +1,6 @@
 {
   "name": "@devvara/oc-omniroute-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Independent OpenCode V2 plugin that connects OmniRoute as a custom provider and optionally routes native web search/fetch through OmniRoute REST.",
   "type": "module",
   "main": "./dist/index.js",
