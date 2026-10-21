@@ -306,7 +306,7 @@ Contributions, bug reports, and suggestions are welcome!
 
 If you encounter a bug, an unhandled model format, or unexpected behavior:
 
-- Open an issue on [GitHub Issues](https://github.com/devararishivian/oc-omniroute-plugin/issues).
+- Open an issue on [GitHub Issues](https://github.com/devararishivian/opencode-omniroute/issues).
 - Include your OpenCode version, OmniRoute gateway version, and a brief description of the issue.
 - **Security Reminder:** Never include your private API keys, bearer tokens, or sensitive endpoint URLs in issue
   descriptions or logs.
