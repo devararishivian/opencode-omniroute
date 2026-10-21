@@ -122,21 +122,20 @@ OmniRoute MCP server.
 
 ## Display names
 
-Titles lead with the model name and end with the provider prefix it routes to:
+Titles lead with the provider name followed by the model name:
 
 ```text
-DeepSeek V4 Flash (openagentic)
-[Free] DeepSeek V4 Flash (openagentic) · 25M tokens/day
+OpenAgentic - Deepseek v4.1 Flash
+[Free] OpenAgentic - Deepseek v4.1 Flash · 25M tokens/day
 ```
 
-The prefix is what makes a provider findable: the picker searches titles, not
-model IDs. `providerTag: false` removes it and brings back the original
-"cannot find it by provider name" problem.
+The provider prefix makes upstream connections findable because OpenCode's
+picker fuzzy-matches titles. `providerTag: false` removes the provider prefix.
 
-A prefix is never a generated connection id such as
-`openai-compatible-chat-<uuid>`. Nested ids keep their first segment (`no-think/openagentic/...` belongs to `no-think`),
-because that is what the
-request routes to.
+The provider is never a generated connection ID like `openai-compatible-chat-<uuid>`.
+For nested IDs behind a known wrapper namespace like `no-think/openagentic/...`,
+the provider is the target upstream connection (`OpenAgentic`), and the wrapper
+is preserved in the title as a namespace prefix (`No-think - OpenAgentic - ...`).
 
 ## Management endpoints and degradation
 

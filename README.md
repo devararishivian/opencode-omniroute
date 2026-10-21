@@ -1,11 +1,12 @@
 # oc-omniroute-plugin
 
-An independent OpenCode V2 plugin that connects [OmniRoute](https://github.com/diegosouzapw/OmniRoute) as a custom
-provider, publishes its model catalog, and can optionally route OpenCode's native web tools through OmniRoute's REST
-API.
+A fast, clean OpenCode V2 plugin for [OmniRoute](https://github.com/diegosouzapw/OmniRoute).
+
+It connects OpenCode directly to your OmniRoute gateway, keeps your model picker clean and organized, and optionally adds fast web search and web fetch tools using OmniRoute's REST API.
 
 ```sh
 bun add -d @devvara/oc-omniroute-plugin
+# or: npm install -D @devvara/oc-omniroute-plugin
 ```
 
 ```json
@@ -14,77 +15,190 @@ bun add -d @devvara/oc-omniroute-plugin
     {
       "package": "@devvara/oc-omniroute-plugin",
       "options": {
-        "baseURL": "http://localhost:20128",
-        "apiKey": "…"
+        "baseURL": "https://your-omniroute-gateway.com",
+        "apiKey": "your-api-key"
       }
     }
   ]
 }
 ```
 
-- **Plugin id:** `opencode-omniroute`
-- **Provider id:** `omniroute` (configurable)
-- **Requires:** OpenCode `@opencode/plugin >=2.1.0 <3`, OmniRoute `>=3.8.52`, Node.js `>=22.22.3`
+---
 
-## What it does
+## Why Use This Plugin?
 
-- Publishes every model the gateway serves, with capabilities, modalities, limits, pricing, free-tier budgets, combos,
-  and reasoning/effort variants as OpenCode variants.
-- Resolves custom-provider identity from the *served* prefix, so a compatible provider node keyed by
-  `openai-compatible-chat-<uuid>` still gets its real name, prices, and a searchable title.
-- Titles read name-first, with the provider last: `DeepSeek V4 Flash (openagentic)`. The picker searches titles, not
-  model ids, so this is what makes a provider findable.
-- `usableOnly` (on by default) hides models whose upstream connection is explicitly disabled or unhealthy, and keeps
-  anything it cannot prove unroutable.
-- Optionally replaces `websearch` and `webfetch` with OmniRoute-backed versions. Both are **off by default**, both call
-  `/v1/search` and `/v1/web/fetch` directly, and neither needs an MCP server.
+The standard `/v1/models` endpoint from a gateway often contains hundreds of raw models. This can clutter your editor with image generators, embeddings, and duplicate rows.
 
-## One key
+This plugin fixes those problems automatically:
 
-The plugin uses the same key that connects OpenCode to OmniRoute, for `/v1/*` and `/api/*`. There is no second
-management token. If that key has no management scope the gateway refuses the metadata endpoints, and the plugin
-publishes the catalog without enrichment instead of failing: models keep working, names and prices degrade, and one log
-line says which endpoint was refused.
+- **Chat models only (Clean Picker)**  
+  Filters out non-chat models that you cannot use for coding or conversation. Image generators (`flux`, `ali-qwen-image-*`), text embeddings (`text-embedding-3`, `nemotron-embed`), audio, video, and rerank models are automatically removed.
 
-Prefer `OMNIROUTE_API_KEY` or `opencode auth` over a key written into a committed config file.
+- **No duplicate rows (Smart Tier Folding)**  
+  Gateways often list flat effort rows like `claude-opus-5-low`, `claude-opus-5-medium`, and `claude-opus-5-high`. This plugin folds them into a single base model (`claude-opus-5`) and exposes the effort levels inside OpenCode's native variant selector.
 
-## Optional web tools
+- **Full Thinking / Reasoning control**  
+  Reads reasoning effort tiers directly from OmniRoute. You can easily switch thinking levels (`low`, `medium`, `high`, `xhigh`, `max`) right from the OpenCode interface.
+
+- **Clean, searchable titles**  
+  Models are named with a provider-first format: `OpenAgentic - Deepseek v4.1 Flash`.
+  - Cleans up ugly repository prefixes (e.g. `nvidia/deepseek-ai/deepseek-v4.1-flash` becomes `Nvidia - Deepseek v4.1 Flash`).
+  - Preserves special routing wrappers clearly (e.g. `No-think - CosmosHub - Claude Opus 5`).
+  - Makes searching in the model picker fast and natural.
+
+- **No fake "Free" badges**  
+  OpenCode shows a `Free` tag on models with zero pricing. When a gateway does not send price data for private or custom connections, other plugins leave the price at 0, falsely labeling expensive models as "Free". This plugin leaves unpriced models clean while keeping the `[Free]` label only on models that are genuinely free.
+
+- **Active connections only (`usableOnly`)**  
+  Enabled by default. It checks connection status and hides upstream providers that are disabled or unhealthy, while making sure active models remain available.
+
+- **One key for everything**  
+  Uses one API key for inference (`/v1/*`) and metadata (`/api/*`). No separate management token is required.
+
+---
+
+## Installation & Setup
+
+### Scenario A: New user (First time connecting OmniRoute)
+
+1. Install the plugin in your project (or global tool directory):
+   ```sh
+   bun add -d @devvara/oc-omniroute-plugin
+   # or
+   npm install -D @devvara/oc-omniroute-plugin
+   ```
+
+2. Add the plugin to your `opencode.json` (or `~/.config/opencode/opencode.json`):
+   ```json
+   {
+     "plugins": [
+       {
+         "package": "@devvara/oc-omniroute-plugin",
+         "options": {
+           "baseURL": "https://omniroute.example.com",
+           "apiKey": "your-api-key"
+         }
+       }
+     ]
+   }
+   ```
+   *Tip: You can also set `OMNIROUTE_API_KEY` in your environment instead of writing your key in the config file.*
+
+---
+
+### Scenario B: You previously connected OmniRoute manually
+
+If you previously added OmniRoute under the `"provider"` block in `opencode.json`:
 
 ```json
-{
-  "web": {
-    "search": {
-      "enabled": true
-    },
-    "fetch": {
-      "enabled": true,
-      "fallbackToNative": true
-    }
+// Remove or replace manual static provider configuration
+"provider": {
+  "omniroute": {
+    "npm": "@ai-sdk/openai-compatible",
+    "options": { "baseURL": "...", "apiKey": "..." },
+    "models": { ... }
   }
 }
 ```
 
-Search adds OmniRoute as a web-search provider and selects it. Fetch replaces the built-in `webfetch` for every caller,
-which is why it is a separate switch; it keeps the native input/output contract, asks for the native `webfetch`
-permission with the URL as the resource before any request, and falls back to the built-in tool when the gateway fails.
+1. Remove the static `"omniroute"` entry from `"provider"` in `opencode.json`.
+2. Add `@devvara/oc-omniroute-plugin` under `"plugins"`.
+3. Restart OpenCode. The plugin will discover and configure your models automatically with live limits and capabilities.
 
-Neither tool sends a `provider` field: OmniRoute chooses among its own configured providers and handles failover.
+---
 
-## Documentation
+### Scenario C: Migrating from `@omniroute/opencode-plugin-v2`
 
-- [Configuration](docs/configuration.md) — every option, defaults, and what degrades when the gateway cannot answer.
-- [Migration and attribution](docs/migration.md) — moving off the upstream plugin or the local title workaround.
+If you used the earlier upstream plugin:
 
-## Compatibility
+1. Update your `package.json` to use `@devvara/oc-omniroute-plugin`.
+2. In `opencode.json`:
+   - Change `"package": "@omniroute/opencode-plugin-v2"` to `"package": "@devvara/oc-omniroute-plugin"`.
+   - Remove `"managementReadToken"` if you had it (this plugin only requires your standard `apiKey`).
+3. Delete the old snapshot file once to ensure clean state:
+   ```sh
+   rm -f ~/.local/share/opencode/plugins/omniroute-omniroute.json
+   ```
+4. Restart OpenCode.
 
-Built against `@opencode/plugin` 2.1.0 and OmniRoute 3.8.52. Options from the upstream
-`@omniroute/opencode-plugin-v2` keep their names except `managementReadToken`, which no longer exists; a config that
-still carries it fails to load and names the key, so the fix is visible rather than silent.
+---
 
-## License and attribution
+## How to Update
 
-MIT. This package is a derivative of the MIT-licensed `@omniroute/opencode-plugin-v2` from the OmniRoute project; the
-upstream copyright notice is preserved in [LICENSE](LICENSE) and the relationship is described in [NOTICE](NOTICE).
+To update the plugin to the latest version:
 
-This is an independent community project. It is **not** an official OmniRoute or OpenCode package and is **not**
-endorsed by or affiliated with either.
+```sh
+bun update @devvara/oc-omniroute-plugin
+# or
+npm update @devvara/oc-omniroute-plugin
+```
+
+If you ever want to force OpenCode to immediately rebuild its cached model catalog, delete the snapshot cache and restart OpenCode:
+```sh
+rm -f ~/.local/share/opencode/plugins/omniroute-omniroute.json
+```
+
+---
+
+## OmniRoute MCP Server Notice
+
+**This plugin does NOT require OmniRoute MCP.**
+
+- This plugin communicates directly with OmniRoute using high-performance HTTP REST endpoints.
+- **Can you still use OmniRoute MCP?** Yes! If you use OmniRoute's MCP server for custom agent tools, you can keep it in your config. They operate independently and will not interfere with each other.
+
+---
+
+## Optional: Web Search & Fetch Tools
+
+OmniRoute can handle web searches and URL fetches without running a separate MCP server. You can enable them directly through this plugin:
+
+```json
+{
+  "plugins": [
+    {
+      "package": "@devvara/oc-omniroute-plugin",
+      "options": {
+        "baseURL": "https://omniroute.example.com",
+        "apiKey": "your-api-key",
+        "web": {
+          "search": {
+            "enabled": true
+          },
+          "fetch": {
+            "enabled": true,
+            "fallbackToNative": true
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+- **`web.search`**: Registers OmniRoute web search as an available search provider in OpenCode.
+- **`web.fetch`**: Replaces OpenCode's default fetch tool with OmniRoute's `/v1/web/fetch`. It always asks for native permission before making requests, and safely falls back to native fetch if the gateway fails.
+
+Both tools are **disabled by default**.
+
+---
+
+## Full Configuration Options
+
+For advanced filtering and timeout options, check [docs/configuration.md](docs/configuration.md).
+
+Key options:
+- `baseURL` *(string, required)*: The URL of your OmniRoute instance.
+- `apiKey` *(string)*: Your OmniRoute gateway key (can also be set via `OMNIROUTE_API_KEY`).
+- `usableOnly` *(boolean, default: `true`)*: Filters out models from inactive or failed connections.
+- `enrichment` *(boolean, default: `true`)*: Fetches human-friendly names and live pricing metadata.
+- `visibleModels` *(string[], default: `["*"]`)*: Allowlist of models to show.
+- `hiddenModels` *(string[])*: Denylist of models to hide.
+
+---
+
+## License & Notice
+
+MIT License. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
+
+*Note: This is an independent open-source project and is not officially affiliated with OmniRoute or OpenCode.*
