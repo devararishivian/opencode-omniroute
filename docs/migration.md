@@ -21,14 +21,14 @@
 
 What changed and why:
 
-| Upstream                                      | Here                                       | Why                                                                                                                                                            |
-|-----------------------------------------------|--------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `managementReadToken`                         | removed                                    | One key covers `/v1/*` and `/api/*`. A second credential most users do not have.                                                                               |
-| `OMNIROUTE_MANAGEMENT_API_KEY`                | removed                                    | Same reason.                                                                                                                                                   |
-| `usableOnly` default `false`                  | default `true`                             | The catalog should show what the gateway can route. The filter only drops proven-unroutable providers, so an inference-only key still yields the full catalog. |
-| Titles like `openagentic - DeepSeek V4 Flash` | `OpenAgentic - DeepSeek V4 Flash`          | Provider first with operator casing (nodeName), humanized names, and clean repo prefixes.                                                                      |
-| Plugin id `omniroute-v2`                      | `opencode-omniroute`                       | Distinct plugin, distinct id.                                                                                                                                  |
-| Web tools require an MCP server               | `web.search` / `web.fetch`, off by default | Direct REST, no MCP, no second credential.                                                                                                                     |
+| Upstream                                          | Here                                       | Why                                                                                                                                                            |
+|---------------------------------------------------|--------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `managementReadToken`                             | removed                                    | One key covers `/v1/*` and `/api/*`. A second credential most users do not have.                                                                               |
+| `OMNIROUTE_MANAGEMENT_API_KEY`                    | removed                                    | Same reason.                                                                                                                                                   |
+| `usableOnly` default `false`                      | default `true`                             | The catalog should show what the gateway can route. The filter only drops proven-unroutable providers, so an inference-only key still yields the full catalog. |
+| Titles like `custom-provider - DeepSeek V4 Flash` | `CustomProvider - DeepSeek V4 Flash`       | Provider first with operator casing (nodeName), humanized names, and clean repo prefixes.                                                                      |
+| Plugin id `omniroute-v2`                          | `opencode-omniroute`                       | Distinct plugin, distinct id.                                                                                                                                  |
+| Web tools require an MCP server                   | `web.search` / `web.fetch`, off by default | Direct REST, no MCP, no second credential.                                                                                                                     |
 
 Options keep their upstream names and meanings otherwise: `providerId`, `baseURL`, `apiKey`, `displayName`,
 `visibleModels`, `hiddenModels`, `providersAllow`, `combosSource`, `freeOnly`, `toolsOnly`, `visionOnly`,
@@ -45,7 +45,8 @@ are not published twice.
 
 A local plugin that re-prefixed titles existed to make custom-provider models searchable. This package does that itself,
 from the served prefix, so remove that plugin from `plugins`. Keeping both would double the marker
-(`OpenAgentic - OpenAgentic - DeepSeek V4 Flash` is avoided, but two plugins writing the same titles is still a race).
+(`CustomProvider - CustomProvider - DeepSeek V4 Flash` is avoided, but two plugins writing the same titles is still a
+race).
 
 The workaround's option names do not exist here. Anything it needed beyond `baseURL` and `apiKey` belongs in the options
 table in [`configuration.md`](configuration.md).

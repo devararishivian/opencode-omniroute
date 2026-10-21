@@ -6,6 +6,7 @@ It connects OpenCode directly to your OmniRoute gateway, keeps your model picker
 adds fast web search and web fetch tools using OmniRoute's REST API.
 
 ```sh
+# Inside your project directory (or in ~/.config/opencode for global setup):
 bun add -d @devvara/oc-omniroute-plugin
 # or: npm install -D @devvara/oc-omniroute-plugin
 ```
@@ -48,10 +49,10 @@ This plugin fixes those problems automatically:
   `xhigh`, `max`) right from the OpenCode interface.
 
 - **Clean, searchable titles**  
-  Models are named with a provider-first format: `OpenAgentic - Deepseek v4.1 Flash`.
+  Models are named with a provider-first format: `CustomProvider - Deepseek v4.1 Flash`.
     - Cleans up ugly repository prefixes (e.g. `nvidia/deepseek-ai/deepseek-v4.1-flash` becomes
       `Nvidia - Deepseek v4.1 Flash`).
-    - Preserves special routing wrappers clearly (e.g. `No-think - CosmosHub - Claude Opus 5`).
+    - Preserves special routing wrappers clearly (e.g. `No-think - CustomProvider - Claude Opus 5`).
     - Makes searching in the model picker fast and natural.
 
 - **No fake "Free" badges**  
@@ -72,14 +73,23 @@ This plugin fixes those problems automatically:
 
 ### Scenario A: New user (First time connecting OmniRoute)
 
-1. Install the plugin in your project (or global tool directory):
-   ```sh
-   bun add -d @devvara/oc-omniroute-plugin
-   # or
-   npm install -D @devvara/oc-omniroute-plugin
-   ```
+1. **Install the plugin:**
+    - **For a single project:** Run this command inside your project root folder (where your project's `opencode.json`
+      lives):
+      ```sh
+      bun add -d @devvara/oc-omniroute-plugin
+      # or
+      npm install -D @devvara/oc-omniroute-plugin
+      ```
+    - **For all projects (global):** Run this command inside your global OpenCode directory:
+      ```sh
+      cd ~/.config/opencode
+      bun add -d @devvara/oc-omniroute-plugin
+      # or: npm install -D @devvara/oc-omniroute-plugin
+      ```
 
-2. Add the plugin to your `opencode.json` (or `~/.config/opencode/opencode.json`):
+2. **Add the plugin to `opencode.json`:**
+   Open your project's `opencode.json` (or global `~/.config/opencode/opencode.json`):
    ```json
    {
      "plugins": [
@@ -118,8 +128,9 @@ If you previously added OmniRoute under the `"provider"` block in `opencode.json
 ```
 
 1. Remove the static `"omniroute"` entry from `"provider"` in `opencode.json`.
-2. Add `@devvara/oc-omniroute-plugin` under `"plugins"`.
-3. Restart OpenCode. The plugin will discover and configure your models automatically with live limits and capabilities.
+2. Install the plugin in your project (or in `~/.config/opencode` for global use) as shown in Scenario A.
+3. Add `@devvara/oc-omniroute-plugin` under `"plugins"` in `opencode.json`.
+4. Restart OpenCode. The plugin will discover and configure your models automatically with live limits and capabilities.
 
 ---
 
@@ -127,14 +138,24 @@ If you previously added OmniRoute under the `"provider"` block in `opencode.json
 
 If you used the earlier upstream plugin:
 
-1. Update your `package.json` to use `@devvara/oc-omniroute-plugin`.
-2. In `opencode.json`:
+1. **Update your dependencies:**
+   In the directory where you previously installed the plugin (your project root or `~/.config/opencode`):
+   ```sh
+   # Inside your project root or ~/.config/opencode:
+   bun remove @omniroute/opencode-plugin-v2 && bun add -d @devvara/oc-omniroute-plugin
+   # or
+   npm uninstall @omniroute/opencode-plugin-v2 && npm install -D @devvara/oc-omniroute-plugin
+   ```
+
+2. **In `opencode.json`:**
     - Change `"package": "@omniroute/opencode-plugin-v2"` to `"package": "@devvara/oc-omniroute-plugin"`.
     - Remove `"managementReadToken"` if you had it (this plugin only requires your standard `apiKey`).
-3. Delete the old snapshot file once to ensure clean state:
+
+3. **Delete the old snapshot file (run from any terminal directory):**
    ```sh
    rm -f ~/.local/share/opencode/plugins/omniroute-omniroute.json
    ```
+
 4. Restart OpenCode.
 
 ---
@@ -143,14 +164,22 @@ If you used the earlier upstream plugin:
 
 To update the plugin to the latest version:
 
-```sh
-bun update @devvara/oc-omniroute-plugin
-# or
-npm update @devvara/oc-omniroute-plugin
-```
+- **If installed in a project:** Run inside your project root folder:
+  ```sh
+  bun update @devvara/oc-omniroute-plugin
+  # or
+  npm update @devvara/oc-omniroute-plugin
+  ```
+
+- **If installed globally:** Run inside your global config folder:
+  ```sh
+  cd ~/.config/opencode && bun update @devvara/oc-omniroute-plugin
+  # or
+  cd ~/.config/opencode && npm update @devvara/oc-omniroute-plugin
+  ```
 
 If you ever want to force OpenCode to immediately rebuild its cached model catalog, delete the snapshot cache and
-restart OpenCode:
+restart OpenCode (**run from any directory**):
 
 ```sh
 rm -f ~/.local/share/opencode/plugins/omniroute-omniroute.json
@@ -228,7 +257,8 @@ This project was built upon and inspired by the work of the open-source communit
   This plugin is an independent derivative of the original `@omniroute/opencode-plugin-v2`. We are grateful for
   OmniRoute's powerful AI gateway and their initial OpenCode integration.
 - **[pi-omniroute-sync](https://github.com/JasonLandbridge/pi-omniroute-sync)**
-  by [JasonLandbridge](https://github.com/JasonLandbridge):  
+  by [JasonLandbridge](https://github.com/JasonLandbridge), with displaying and custom-prefix discovery contributions by
+  the author:  
   Special thanks for inspiring key ideas around chat-only model filtering, dual-level effort tier discovery, and clean
   provider-first naming conventions.
 - **[OpenCode](https://github.com/anomalyco/opencode)**:  

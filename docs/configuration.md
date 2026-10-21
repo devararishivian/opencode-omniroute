@@ -116,16 +116,17 @@ MCP is not involved: the plugin never registers, replaces, or requires an OmniRo
 Titles lead with the provider name followed by the model name:
 
 ```text
-OpenAgentic - Deepseek v4.1 Flash
-[Free] OpenAgentic - Deepseek v4.1 Flash · 25M tokens/day
+CustomProvider - Deepseek v4.1 Flash
+[Free] CustomProvider - Deepseek v4.1 Flash · 25M tokens/day
 ```
 
 The provider prefix makes upstream connections findable because OpenCode's picker fuzzy-matches titles.
 `providerTag: false` removes the provider prefix.
 
 The provider is never a generated connection ID like `openai-compatible-chat-<uuid>`. For nested IDs behind a known
-wrapper namespace like `no-think/openagentic/...`, the provider is the target upstream connection (`OpenAgentic`), and
-the wrapper is preserved in the title as a namespace prefix (`No-think - OpenAgentic - ...`).
+wrapper namespace like `no-think/custom-provider/...`, the provider is the target upstream connection
+(`CustomProvider`), and
+the wrapper is preserved in the title as a namespace prefix (`No-think - CustomProvider - ...`).
 
 ## Management endpoints and degradation
 
