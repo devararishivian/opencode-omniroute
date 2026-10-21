@@ -138,7 +138,8 @@ describe("v1-vs-v2 catalog parity", () => {
     if (mAlpha.api.type !== "aisdk") throw new Error("m-alpha api must be aisdk");
     assert.equal(mAlpha.api.package, "@ai-sdk/openai-compatible");
     assert.equal(mAlpha.capabilities.tools, true);
-    assert.equal(mAlpha.cost[0].input, 0);
+    // v2 emits cost: [] for unpriced models so OpenCode does not render a fake "Free" badge
+    assert.deepEqual(mAlpha.cost, []);
 
     // Measured key shapes: v1 namespaces the friendly name
     // (`Combo Fast` -> `omniroute/combo-fast`) and keys the colliding combo

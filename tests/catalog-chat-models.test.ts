@@ -43,6 +43,24 @@ describe("non-chat rows never reach the picker", () => {
       ["openagentic/kimi-k3"]
     );
   });
+
+  it("drops image and embedding models even when the gateway provides no type or modalities", async () => {
+    // Upstream gateway sometimes omits `type` and `output_modalities` on image
+    // generation or embedding rows (e.g. `ali-qwen-image-*`, `nemotron-*-embed-*`).
+    // These cannot handle chat completions and must never reach the chat picker.
+    const payload = await publish([
+      { id: "openagentic/ali-qwen-image-2.0-pro" },
+      { id: "openagentic/ali-wan2.7-image" },
+      { id: "openagentic/ali-z-image-turbo" },
+      { id: "nvidia/nvidia/nemotron-3.5-embed-1b" },
+      { id: "openagentic/deepseek-v4-flash-vision-exp" }, // vision chat is kept!
+      { id: "openagentic/kimi-k3" },
+    ]);
+    assert.deepEqual(
+      payload.models.map((m) => m.modelID),
+      ["openagentic/deepseek-v4-flash-vision-exp", "openagentic/kimi-k3"]
+    );
+  });
 });
 
 describe("flat effort rows fold into their base model", () => {
@@ -113,7 +131,6 @@ describe("names come from the operator and the id", () => {
     ]);
     const names = payload.models.map((m) => m.name);
     assert.equal(new Set(names).size, 2, JSON.stringify(names));
-    // No connection is supplied here, so the label is the capitalised prefix.
     assert.ok(names.some((n) => n.includes("Cosmoshub")), JSON.stringify(names));
     assert.ok(names.some((n) => n.includes("Openagentic")), JSON.stringify(names));
   });
@@ -124,5 +141,59 @@ describe("names come from the operator and the id", () => {
       { id: "cosmoshub/kimi-k3" },
     ]);
     assert.equal(new Set(payload.models.map((m) => m.name)).size, 2);
+  });
+
+  it("deduplicates case-insensitive duplicate model IDs from the gateway", async () => {
+    // Gateway sometimes serves both `openagentic/deepseek-v4-pro` and
+    // `openagentic/DeepSeek-V4-Pro`. Publishing both shows two nearly identical rows.
+    const payload = await publish([
+      { id: "openagentic/deepseek-v4-pro" },
+      { id: "openagentic/DeepSeek-V4-Pro" },
+    ]);
+    assert.equal(payload.models.length, 1);
+    assert.equal(payload.models[0]?.modelID, "openagentic/deepseek-v4-pro");
+  });
+
+  it("cleans repository org prefixes from model display names", async () => {
+    // Upstream enrichment names like `deepseek-ai/deepseek-v4.1-flash` or
+    // `z-ai/glm-5.3-flash` shouldn't leak the repo slash into the title.
+    const payload = await publish([
+      { id: "nvidia/deepseek-ai/deepseek-v4.1-flash" },
+      { id: "nvidia/z-ai/glm-5.3-flash" },
+    ]);
+    const names = payload.models.map((m) => m.name);
+    assert.ok(names.some((n) => n.includes("Nvidia") && n.includes("Deepseek v4.1 Flash")));
+    assert.ok(!names.some((n) => n.includes("deepseek-ai/")));
+    assert.ok(names.some((n) => n.includes("Nvidia") && n.includes("GLM 5.3 Flash")));
+    assert.ok(!names.some((n) => n.includes("z-ai/")));
+  });
+});
+
+describe("pricing and free badges", () => {
+  it("emits empty cost array for unpriced non-free models to prevent fake Free badges", async () => {
+    // OpenCode checks `cost.length > 0 && cost.every(c => c.input === 0)` to show a "Free" badge.
+    // If an unpriced model is given `cost: [{ input: 0, output: 0 }]`, OpenCode displays "Free"
+    // even for expensive models. Unpriced models must emit `cost: []` so OpenCode displays no Free badge.
+    const payload = await publish([
+      { id: "openagentic/kimi-k3" }, // unpriced paid model -> cost: []
+      { id: "openagentic/deepseek-v4.1-flash-free" }, // explicitly free model -> cost: [{ input: 0, output: 0 }]
+      { id: "antigravity/gemini-3.1-pro", pricing: { input: 1.5, output: 5 } }, // priced model -> cost: [{ input: 1.5, ... }]
+    ]) as unknown as {
+      models: Array<{ modelID: string; cost: Array<{ input: number; output: number }> }>;
+    };
+
+    const unpriced = payload.models.find((m) => m.modelID === "openagentic/kimi-k3");
+    assert.ok(unpriced);
+    assert.deepEqual(unpriced.cost, []);
+
+    const free = payload.models.find((m) => m.modelID === "openagentic/deepseek-v4.1-flash-free");
+    assert.ok(free);
+    assert.equal(free.cost.length, 1);
+    assert.equal(free.cost[0]?.input, 0);
+
+    const priced = payload.models.find((m) => m.modelID === "antigravity/gemini-3.1-pro");
+    assert.ok(priced);
+    assert.equal(priced.cost.length, 1);
+    assert.equal(priced.cost[0]?.input, 1.5);
   });
 });

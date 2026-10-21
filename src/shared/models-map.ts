@@ -34,6 +34,16 @@ export interface OmniRouteRawModelEntry {
   release_date?: string;
   last_updated?: string;
   api_format?: string;
+  /** Per-million-token pricing directly attached to the model row by OmniRoute. */
+  pricing?: {
+    input?: number;
+    output?: number;
+    cached?: number;
+    cacheRead?: number;
+    cache_creation?: number;
+    cacheWrite?: number;
+    reasoning?: number;
+  };
 }
 
 /**
@@ -353,9 +363,22 @@ export function mapRawModelToModelV2(
       interleaved: Boolean(caps.thinking),
     },
     cost: {
-      input: 0,
-      output: 0,
-      cache: { read: 0, write: 0 },
+      input: typeof raw.pricing?.input === "number" ? raw.pricing.input : 0,
+      output: typeof raw.pricing?.output === "number" ? raw.pricing.output : 0,
+      cache: {
+        read:
+          typeof raw.pricing?.cached === "number"
+            ? raw.pricing.cached
+            : typeof raw.pricing?.cacheRead === "number"
+              ? raw.pricing.cacheRead
+              : 0,
+        write:
+          typeof raw.pricing?.cache_creation === "number"
+            ? raw.pricing.cache_creation
+            : typeof raw.pricing?.cacheWrite === "number"
+              ? raw.pricing.cacheWrite
+              : 0,
+      },
     },
     limit: {
       context: typeof raw.context_length === "number" ? raw.context_length : 0,

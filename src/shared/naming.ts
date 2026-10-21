@@ -309,14 +309,20 @@ export function buildModelDisplayName(params: ModelDisplayNameParams): string {
       .replace(/[\s-]+free\s*$/i, "")
       .trim();
   const supplied = params.enrichmentName?.trim();
+  // If the supplied name is org-prefixed like `deepseek-ai/deepseek-v4.1-flash`,
+  // compare and humanise using the leaf segment so the repo slash does not leak.
+  const suppliedLeaf =
+    supplied !== undefined && supplied.includes("/")
+      ? supplied.slice(supplied.lastIndexOf("/") + 1).trim()
+      : supplied;
   const rawSegment = params.rawId.slice(params.rawId.lastIndexOf("/") + 1);
   const idSegment = stripFree(rawSegment);
   const nameIsId =
-    supplied === undefined ||
-    supplied.length === 0 ||
-    supplied === params.rawId ||
-    stripFree(supplied).toLowerCase() === idSegment.toLowerCase();
-  const named = nameIsId ? humanizeModelName(idSegment) : supplied;
+    suppliedLeaf === undefined ||
+    suppliedLeaf.length === 0 ||
+    suppliedLeaf === params.rawId ||
+    stripFree(suppliedLeaf).toLowerCase() === idSegment.toLowerCase();
+  const named = nameIsId ? humanizeModelName(idSegment) : suppliedLeaf;
   // Free-ness is a property of the id and of the gateway's own label, so it is
   // read before either is stripped: `deepseek-v4.1-flash-free` must stay
   // marked free even though its title is the paid model's name.
@@ -417,9 +423,9 @@ export function humanizeModelName(value: string): string {
 }
 
 /**
- * Capitalise a provider prefix for display when the connection carried no
- * `nodeName`: `cosmoshub` -> `Cosmoshub`. A label that already carries capitals
- * is left alone, because it came from the operator.
+ * Format a provider prefix or wrapper namespace for display when the connection
+ * carried no custom operator `nodeName`: `cosmoshub` -> `Cosmoshub`, `no-think` -> `No-think`.
+ * A label that already carries mixed/upper case from the operator is left untouched.
  */
 export function displayLabel(label: string): string {
   if (label.length === 0) return label;

@@ -397,6 +397,18 @@ export function legacyToStable(
     body: { ...(body as Record<string, unknown>) },
   }));
   const parsed = Date.parse(m.release_date);
+  const hasKnownPrice =
+    typeof m.cost?.input === "number" &&
+    typeof m.cost?.output === "number" &&
+    (m.cost.input > 0 || m.cost.output > 0);
+  const isFree =
+    m.name.startsWith("[Free]") ||
+    m.id.toLowerCase().endsWith("-free") ||
+    m.id.toLowerCase().endsWith(":free");
+  const cost =
+    hasKnownPrice || isFree
+      ? [{ input: m.cost.input, output: m.cost.output, cache: { ...m.cost.cache } }]
+      : [];
   const info = {
     id: modelID,
     modelID,
@@ -410,7 +422,7 @@ export function legacyToStable(
     capabilities: { tools: m.capabilities.toolcall, input, output },
     variants,
     time: { released: Number.isNaN(parsed) ? 0 : parsed },
-    cost: [{ input: m.cost.input, output: m.cost.output, cache: { ...m.cost.cache } }],
+    cost,
     status: m.status,
     enabled: true,
     limit: { ...m.limit },
@@ -894,6 +906,17 @@ export async function collectCatalog(
   // A prefix-only row is not a model; drop it before any filter sees it so it
   // cannot occupy a showcase slot either.
   rawModels = rawModels.filter((entry) => isPublishableRawModelId(entry.id));
+
+  // Case-insensitive deduplication: upstream gateways sometimes serve both
+  // `openagentic/deepseek-v4-pro` and `openagentic/DeepSeek-V4-Pro`.
+  const seenLowerIds = new Set<string>();
+  rawModels = rawModels.filter((entry) => {
+    const lower = entry.id.toLowerCase();
+    if (seenLowerIds.has(lower)) return false;
+    seenLowerIds.add(lower);
+    return true;
+  });
+
   // The picker is a chat picker. Image, video, audio, embedding and rerank
   // rows are noise there, and a zero price makes every one of them read as
   // free, which buries the models a user actually wants.
