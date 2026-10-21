@@ -34,11 +34,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@opencode/plugin": "2.1.0",
+    "@opencode/plugin": "2.1.2",
     "@types/bun": "^1.4.3",
     "@types/node": "^22.19.19",
     "bun-types": "^1.4.3",
-    "tsup": "^8.5.1",
+    "tsup": "^9.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
