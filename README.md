@@ -306,7 +306,7 @@ Contributions, bug reports, and suggestions are welcome!
 
 If you encounter a bug, an unhandled model format, or unexpected behavior:
 
-- Open an issue on [GitHub Issues](https://github.com/devvara/oc-omniroute-plugin/issues).
+- Open an issue on [GitHub Issues](https://github.com/devararishivian/oc-omniroute-plugin/issues).
 - Include your OpenCode version, OmniRoute gateway version, and a brief description of the issue.
 - **Security Reminder:** Never include your private API keys, bearer tokens, or sensitive endpoint URLs in issue
   descriptions or logs.
@@ -319,7 +319,7 @@ If this plugin makes your OpenCode workflow smoother:
 
 - **Star the repository:** Give us a ⭐ on GitHub! It helps other developers find this project.
 - **Sponsor / Donate:** If this tool brings value to you or your company, consider sponsoring or supporting ongoing
-  maintenance via [GitHub Sponsors](https://github.com/sponsors/devvara) or donation links on the profile. Your support
+  maintenance via [GitHub Sponsors](https://github.com/sponsors/devararishivian) or donation links on the profile. Your support
   keeps the project active and independent!
 
 ---
