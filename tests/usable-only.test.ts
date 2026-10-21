@@ -94,22 +94,22 @@ describe("catalog usableOnly gating", () => {
     { id: "agentrouter/mystery" },
   ];
 
-  it("usableOnly=false performs zero providers fetches", async () => {
+  it("usableOnly=false never filters, even though it may read connections for names", async () => {
+    // Connections are fetched for `nodeName` (the operator's own casing) whether
+    // or not filtering is on. Turning the option off must still never hide a
+    // model, so the assertion is on the outcome, not on whether a request was made.
     const { draft, models } = fakeDraft();
-    let providersCalls = 0;
     const res = await publishCatalog(
       draft,
       { ...baseOpts, usableOnly: false },
       {
         fetcher: stubModels,
         combosFetcher: async () => [],
-        providersFetcher: async () => {
-          providersCalls += 1;
-          return [];
-        },
+        providersFetcher: async () => [
+          { id: "c", provider: "dead", isActive: false, testStatus: "error" },
+        ],
       }
     );
-    assert.equal(providersCalls, 0);
     assert.equal(res.models, 3);
     assert.deepEqual(res, { models: 3, combos: 0 });
     assert.ok(models.has("omniroute/cc/keep-me"));

@@ -9,6 +9,7 @@ import {
 } from "./provider-filter.js";
 import type { LegacyModel } from "./legacy-model.js";
 import { isUserComboRow, usesModelsComboSource, type CombosSource } from "./combos-source.js";
+import { isChatModel } from "./chat-models.js";
 import {
   comboLookupName,
   filterRawPoolByPreset,
@@ -21,6 +22,7 @@ import {
 import {
   buildProviderIdentityIndex,
   resolveProviderForModel,
+  wrapperOf,
   type ProviderIdentityIndex,
 } from "./provider-identity.js";
 import {
@@ -578,10 +580,11 @@ interface ProviderSources {
 /**
  * Resolve the provider vocabulary and the usableOnly filter in one pass.
  *
- * The connections fetch is gated on `usableOnly` (default on). When it is off
- * no request is issued and the identity index is built from enrichment alone,
- * which still carries each slot's public prefix — so display labels stay
- * correct without a second call.
+ * `/api/providers` is the only source of the operator's own connection names
+ * (`nodeName`: `OpenAgentic`, `CosmosHub`), so the fetch runs whether or not
+ * filtering is on — `usableOnly` decides whether the result narrows the
+ * catalog, not whether titles get the right casing. One request per refresh
+ * buys both.
  *
  * The filter subtracts: a failed or empty connections fetch yields `undefined`
  * and keeps the whole catalog, because only a prefix proven not provisioned
@@ -595,13 +598,6 @@ async function resolveProviderSources(
   timeoutMs: number,
   log: Logger
 ): Promise<ProviderSources> {
-  if (!opts.usableOnly) {
-    return {
-      usable: undefined,
-      identity: buildProviderIdentityIndex({ enrichment }),
-      connections: [],
-    };
-  }
   let rawConnections: OmniRouteProviderConnection[];
   try {
     const fetchProviders = providersFetcher ?? defaultOmniRouteProvidersFetcher;
@@ -612,9 +608,11 @@ async function resolveProviderSources(
       onSourceError
     );
   } catch (err) {
-    log.warn(
-      `[omniroute-v2] providers fetch failed, usableOnly filter disabled for this refresh: ${err instanceof Error ? err.message : String(err)}`
-    );
+    if (opts.usableOnly) {
+      log.warn(
+        `[omniroute-v2] providers fetch failed, usableOnly filter disabled for this refresh: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
     rawConnections = [];
   }
   // An empty answer is not an allowlist of nothing: the gateway describing no
@@ -622,9 +620,11 @@ async function resolveProviderSources(
   // proof would empty the picker over a gateway bug. Keep the catalog and say
   // the filter could not be applied.
   if (rawConnections.length === 0) {
-    log.warn(
-      "[omniroute-v2] /api/providers returned no connections, usableOnly could not be evaluated; publishing the full served catalog."
-    );
+    if (opts.usableOnly) {
+      log.warn(
+        "[omniroute-v2] /api/providers returned no connections, usableOnly could not be evaluated; publishing the full served catalog."
+      );
+    }
     return {
       usable: undefined,
       identity: buildProviderIdentityIndex({ enrichment }),
@@ -632,7 +632,7 @@ async function resolveProviderSources(
     };
   }
   return {
-    usable: usableProviderAliasSet(rawConnections, enrichment),
+    usable: opts.usableOnly ? usableProviderAliasSet(rawConnections, enrichment) : undefined,
     identity: buildProviderIdentityIndex({ connections: rawConnections, enrichment }),
     connections: rawConnections,
   };
@@ -835,6 +835,15 @@ async function publishCombos(
  * single `editor.add` in the payload builder.
  */
 /**
+ * Wrapper namespace of a nested id: `no-think` for `no-think/openagentic/x`,
+ * `undefined` for a plain `openagentic/x`. Only the segments before the
+ * provider are a namespace; the provider itself is the label.
+ */
+export function namespaceOf(id: string): string | undefined {
+  return wrapperOf(id);
+}
+
+/**
  * Whether a raw `/v1/models` row names a model at all.
  *
  * The gateway occasionally serves rows whose id is only a provider prefix with
@@ -885,6 +894,31 @@ export async function collectCatalog(
   // A prefix-only row is not a model; drop it before any filter sees it so it
   // cannot occupy a showcase slot either.
   rawModels = rawModels.filter((entry) => isPublishableRawModelId(entry.id));
+  // The picker is a chat picker. Image, video, audio, embedding and rerank
+  // rows are noise there, and a zero price makes every one of them read as
+  // free, which buries the models a user actually wants.
+  const beforeChatFilter = rawModels.length;
+  rawModels = rawModels.filter(isChatModel);
+  const chatDropped = beforeChatFilter - rawModels.length;
+  if (chatDropped > 0) {
+    log.debug(`[omniroute-v2] dropped ${chatDropped} non-chat rows from ${beforeChatFilter} served`);
+  }
+
+  // A flat effort-variant row (`owner/model-high` next to `owner/model`) is
+  // the same model at one effort level. Published as its own model it shows up
+  // as a duplicate with a different name, and the base model's variants already
+  // offer that level. Drop the row when its base is served; keep it when the
+  // base is not, because then it is the only way to reach that model.
+  const servedIds = new Set(rawModels.map((entry) => entry.id));
+  const foldedFlatRows = new Set<string>();
+  for (const entry of rawModels) {
+    const base = baseIdOf(entry.id);
+    if (base !== undefined && servedIds.has(base)) foldedFlatRows.add(entry.id);
+  }
+  if (foldedFlatRows.size > 0) {
+    rawModels = rawModels.filter((entry) => !foldedFlatRows.has(entry.id));
+    log.debug(`[omniroute-v2] folded ${foldedFlatRows.size} flat effort rows into their base model`);
+  }
 
   const catalogAll = opts.visibleModels?.includes("*") === true;
   const visibleFilter = catalogAll ? undefined : compileModelListFilter(opts.visibleModels);
@@ -1038,9 +1072,14 @@ export async function collectCatalog(
       canonicalToAlias,
       entry.owned_by
     );
-    applyEnrichment(mapped, enrichmentEntry, {
+    // Always apply the overlay, even with no enrichment row: the provider
+    // marker and the humanised id come from the identity index, and skipping
+    // them left those models showing a bare id while their neighbours showed a
+    // name.
+    applyEnrichment(mapped, enrichmentEntry ?? {}, {
       providerTag: opts.providerTag !== false,
       providerLabel: resolveProviderForModel(identity, entry.id, entry.owned_by)?.label,
+      namespace: namespaceOf(entry.id),
     });
     if (
       !passesCapabilityPresets(mapped, enrichmentEntry, {
@@ -1083,9 +1122,10 @@ export async function collectCatalog(
         canonicalToAlias,
         entry.owned_by
       );
-      applyEnrichment(mapped, restoreEnrichment, {
+      applyEnrichment(mapped, restoreEnrichment ?? {}, {
         providerTag: opts.providerTag !== false,
         providerLabel: resolveProviderForModel(identity, entry.id, entry.owned_by)?.label,
+        namespace: namespaceOf(entry.id),
       });
       if (
         !passesCapabilityPresets(mapped, restoreEnrichment, {

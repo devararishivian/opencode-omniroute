@@ -194,11 +194,11 @@ export default Plugin.define({
         return { ok: false };
       }
     };
-    // Providers connections follow the same rule: gated on usableOnly (no
-    // request when false, v1 parity), soft-fail to [] so the filter degrades
-    // to keep-all instead of hiding the catalog.
+    // Connections feed two things: the usableOnly filter and the operator's own
+    // connection names (`nodeName`), which is the only source of a provider's
+    // real casing. So the fetch always runs; `usableOnly` decides whether the
+    // result narrows the catalog. Soft-fail to [] keeps the filter on keep-all.
     const fetchProvidersSafe = async (): Promise<SourceResult<OmniRouteProviderConnection[]>> => {
-      if (!resolved.usableOnly) return { ok: true, value: [] };
       try {
         return {
           ok: true,
