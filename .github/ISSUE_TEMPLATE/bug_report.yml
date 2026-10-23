@@ -44,7 +44,7 @@ body:
       label: Environment Info
       description: What versions are you using?
       value: |
-        - Plugin version: 0.1.1
+        - Plugin version: 0.1.2
         - OpenCode version:
         - OmniRoute version:
         - Node.js / Bun version:
