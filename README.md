@@ -278,10 +278,23 @@ Key options:
 - `apiKey` *(string)*: Your OmniRoute gateway key (can also be set via `OMNIROUTE_API_KEY`).
 - `usableOnly` *(boolean, default: `true`)*: Filters out models from inactive or failed connections.
 - `enrichment` *(boolean, default: `true`)*: Fetches human-friendly names and live pricing metadata.
-- `visibleModels` *(string[], default: `["*"]`)*: Allowlist of models to show.
-- `hiddenModels` *(string[])*: Denylist of models to hide.
+- `visibleModels` *(string[], default: `["*"]`)*: Allowlist of models to show (supports exact IDs, suffixes, or branch wildcards like `openai/*`).
+- `hiddenModels` *(string[])*: Denylist of models to hide (supports exact IDs, suffixes, or branch wildcards like `google/*`).
+- `combos` *(boolean, default: `true`)*: Set to `false` to hide all combo models and skip combo metadata requests.
+- `freeOnly` *(boolean, default: `false`)*: Publish free-tier models only.
+- `freeSignals` *(string[], default: `["declared"]`)*: Signals for `freeOnly` inference (`"declared"`, `"priced"`, `"named"`, `"provider-named"`).
 - `web.search.enabled` *(boolean, default: `false`)*: Enables REST web search provider.
 - `web.fetch.enabled` *(boolean, default: `false`)*: Enables REST web fetch tool with native fallback.
+
+---
+
+## Compatibility & Requirements
+
+| Component | Minimum Version | Tested & Aligned Version | Notes |
+| :--- | :--- | :--- | :--- |
+| **OpenCode V2** | `>=2.1.0` | `2.2.6` (also `2.2.0`, `2.2.1`) | `peerDependencies: "@opencode/plugin": ">=2.1.0 <3"` |
+| **OmniRoute Gateway** | `>=3.8.52` | `3.8.53` | Direct REST inference, pricing/metadata, and web tools |
+| **Runtime** | Node `>=22.22.3` / Bun `>=1.4.0` | Node `22.20.5` / Bun `1.4.4` | Node.js 22 LTS or modern Bun |
 
 ---
 

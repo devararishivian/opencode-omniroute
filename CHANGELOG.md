@@ -11,13 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Background catalog refresh loop aligning the served catalog with the gateway automatically over `modelCacheTtlMs`
   (minimum 60s period) without requiring an OpenCode service restart.
+  *(Credit: Backported with attribution from upstream PR #18235 by @maxmad64bis, MIT License).*
+- Branch wildcard filtering (`prefix/*`) in `visibleModels`, `hiddenModels`, and `providersAllow`, allowing entire
+  provider branches (e.g. `anthropic/*`, `opencode-go/*`) to be included or excluded in a single entry.
+- Option `combos` (boolean, default: `true`). Setting `combos: false` suppresses all combo publishing and skips `/api/combos`
+  requests for users who only want standalone models.
+  *(Credit: Backported with attribution from upstream PR #18135 by @maxmad64bis, MIT License).*
+- Inferred free signals via `freeSignals` option (`"declared"`, `"priced"`, `"named"`, `"provider-named"`) and
+  `freeProviders`, allowing `freeOnly` to detect free models based on zero pricing ($0) or `-free` naming suffixes, labelled
+  `(free, inferred)`.
+  *(Credit: Backported with attribution from upstream PR #16800 by @maxmad64bis, MIT License).*
 - Non-overlapping background execution with safe timer unref and host cleanup disposal on plugin unload.
 - Immediate cache eviction for previous credential keys upon connection credential changes.
-- (Credit: Backported with attribution from upstream PR #18235 by @maxmad64bis, MIT License).
+- Documented explicit minimum and tested versions for OpenCode V2 (`>=2.1.0`, tested on `2.2.6`) and OmniRoute (`>=3.8.52`, tested on `3.8.53`).
 
 ### Changed
 
-- Updated `@opencode/plugin` to `2.2.6` and verified compatibility across OpenCode 2.2.2 through 2.2.6 releases.
+- Updated `@opencode/plugin` to `2.2.6` and verified full compatibility across OpenCode 2.2.2 through 2.2.6 releases.
 - Clarified `modelCacheTtlMs` documentation to describe both cache TTL and background refresh period.
 
 ## [0.1.3] - 2026-10-29
