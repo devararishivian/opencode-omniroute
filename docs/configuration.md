@@ -60,7 +60,7 @@ Unknown keys are rejected with a message naming the key, because a silently igno
 | `freeOnly`           | `false`             | Publish free-tier models only                                          |
 | `toolsOnly`          | `false`             | Publish tool-calling models only                                       |
 | `visionOnly`         | `false`             | Publish vision models only                                             |
-| `modelCacheTtlMs`    | `300000`            | Catalog cache lifetime                                                 |
+| `modelCacheTtlMs`    | `300000`            | Catalog cache lifetime and background refresh interval (minimum 60000 ms) |
 | `timeoutMs`          | `10000`             | Default per-request timeout                                            |
 | `timeouts`           | —                   | Per-endpoint overrides: `models`, `combos`, `autoCombos`, `enrichment` |
 | `usageMemory`        | `true`              | Restore recently used models the default view dropped                  |
