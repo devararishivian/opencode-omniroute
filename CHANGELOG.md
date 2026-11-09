@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-11-09
+
+### Added
+
+- Background catalog refresh loop aligning the served catalog with the gateway automatically over `modelCacheTtlMs`
+  (minimum 60s period) without requiring an OpenCode service restart.
+- Non-overlapping background execution with safe timer unref and host cleanup disposal on plugin unload.
+- Immediate cache eviction for previous credential keys upon connection credential changes.
+- (Credit: Backported with attribution from upstream PR #18235 by @maxmad64bis, MIT License).
+
+### Changed
+
+- Updated `@opencode/plugin` to `2.2.6` and verified compatibility across OpenCode 2.2.2 through 2.2.6 releases.
+- Clarified `modelCacheTtlMs` documentation to describe both cache TTL and background refresh period.
+
 ## [0.1.3] - 2026-10-29
 
 ### Changed
