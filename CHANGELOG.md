@@ -10,20 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Background catalog refresh loop aligning the served catalog with the gateway automatically over `modelCacheTtlMs`
-  (minimum 60s period) without requiring an OpenCode service restart.
-  *(Credit: Backported with attribution from upstream PR #18235 by @maxmad64bis, MIT License).*
+  (minimum 60s period) without requiring an OpenCode service restart. *(Credit: Backported with attribution from
+  upstream PR #18235 by @maxmad64bis, MIT License).*
 - Branch wildcard filtering (`prefix/*`) in `visibleModels`, `hiddenModels`, and `providersAllow`, allowing entire
   provider branches (e.g. `anthropic/*`, `opencode-go/*`) to be included or excluded in a single entry.
-- Option `combos` (boolean, default: `true`). Setting `combos: false` suppresses all combo publishing and skips `/api/combos`
-  requests for users who only want standalone models.
-  *(Credit: Backported with attribution from upstream PR #18135 by @maxmad64bis, MIT License).*
+- Option `combos` (boolean, default: `true`). Setting `combos: false` suppresses all combo publishing and skips
+  `/api/combos` requests for users who only want standalone models. *(Credit: Backported with attribution from upstream
+  PR #18135 by @maxmad64bis, MIT License).*
 - Inferred free signals via `freeSignals` option (`"declared"`, `"priced"`, `"named"`, `"provider-named"`) and
-  `freeProviders`, allowing `freeOnly` to detect free models based on zero pricing ($0) or `-free` naming suffixes, labelled
-  `(free, inferred)`.
-  *(Credit: Backported with attribution from upstream PR #16800 by @maxmad64bis, MIT License).*
+  `freeProviders`, allowing `freeOnly` to detect free models based on zero pricing ($0) or `-free` naming suffixes,
+  labelled `(free, inferred)`. *(Credit: Backported with attribution from upstream PR #16800 by @maxmad64bis, MIT
+  License).*
 - Non-overlapping background execution with safe timer unref and host cleanup disposal on plugin unload.
 - Immediate cache eviction for previous credential keys upon connection credential changes.
-- Documented explicit minimum and tested versions for OpenCode V2 (`>=2.1.0`, tested on `2.2.6`) and OmniRoute (`>=3.8.52`, tested on `3.8.53`).
+- Documented explicit minimum and tested versions for OpenCode V2 (`>=2.1.0`, tested on `2.2.6`) and OmniRoute
+  (`>=3.8.52`, tested on `3.8.53`).
 
 ### Changed
 
@@ -38,7 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Confirmed stability across the OpenCode 2.2.x changes (Promise API shift in `@opencode/ai`, provider removals/renames,
   OpenTUI 0.7 requirements for TUI plugins, and new optional model fields).
 
-No plugin source changes were required; catalog publishing, model mapping, tool transforms, and web search/fetch behavior remain unchanged.
+No plugin source changes were required; catalog publishing, model mapping, tool transforms, and web search/fetch
+behavior remain unchanged.
 
 ## [0.1.2] - 2026-10-23
 
