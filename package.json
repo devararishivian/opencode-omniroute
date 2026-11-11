@@ -16,6 +16,7 @@
   },
   "files": [
     "dist",
+    "assets",
     "docs/configuration.md",
     "docs/migration.md",
     "server.js",

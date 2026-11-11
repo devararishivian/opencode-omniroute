@@ -11,6 +11,18 @@ A fast, clean OpenCode V2 plugin for [OmniRoute](https://github.com/diegosouzapw
 It connects OpenCode directly to your OmniRoute gateway, keeps your model picker clean and organized, and optionally
 adds fast web search and web fetch tools using OmniRoute's REST API.
 
+<p align="center">
+  <img src="assets/model-picker.png" alt="OpenCode Model Picker with OmniRoute" width="720" />
+  <br />
+  <em>Clean model picker with organized provider naming, effort tiers, and free-tier badges</em>
+</p>
+
+<p align="center">
+  <img src="assets/active-session.png" alt="OpenCode Active Session with OmniRoute Model" width="720" />
+  <br />
+  <em>Seamless integration inside OpenCode TUI active session</em>
+</p>
+
 ```sh
 # Inside your project directory (or in ~/.config/opencode for global setup):
 bun add -d @devvara/oc-omniroute-plugin
