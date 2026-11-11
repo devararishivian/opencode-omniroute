@@ -292,7 +292,7 @@ Key options:
 
 | Component | Minimum Version | Tested & Aligned Version | Notes |
 | :--- | :--- | :--- | :--- |
-| **OpenCode V2** | `>=2.1.0` | `2.2.6` (also `2.2.0`, `2.2.1`) | `peerDependencies: "@opencode/plugin": ">=2.1.0 <3"` |
+| **OpenCode V2** | `>=2.1.0` | `2.2.7` (also `2.2.0`–`2.2.6`) | `peerDependencies: "@opencode/plugin": ">=2.1.0 <3"` |
 | **OmniRoute Gateway** | `>=3.8.52` | `3.8.53` | Direct REST inference, pricing/metadata, and web tools |
 | **Runtime** | Node `>=22.22.3` / Bun `>=1.4.0` | Node `22.20.5` / Bun `1.4.4` | Node.js 22 LTS or modern Bun |
 

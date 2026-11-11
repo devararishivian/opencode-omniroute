@@ -34,7 +34,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@opencode/plugin": "2.2.6",
+    "@opencode/plugin": "2.2.7",
     "@types/bun": "^1.4.4",
     "@types/node": "^22.20.5",
     "bun-types": "^1.4.4",
